@@ -1,0 +1,167 @@
+import os, sys
+import numpy as np
+import pandas as pd
+from causal2groups.simulated_data import AdditiveSimulatedData, NonadditiveSimulatedData, GDSCSemiSynthetic
+from causal2groups.kernel_nonadditive import KernelNonadditiveCausal2G
+from causal2groups.additive import AdditiveCausal2G
+from itertools import product
+import subprocess
+import argparse
+
+def run_simulation(dir_name, seed):
+    ## Set seed
+    np.random.seed(seed)
+
+    X = pd.read_csv(os.path.join(dir_name, "X.csv")).values
+    Y = pd.read_csv(os.path.join(dir_name, "Y.csv")).values.squeeze()
+    T = pd.read_csv(os.path.join(dir_name, "T.csv")).values.squeeze()
+    H = pd.read_csv(os.path.join(dir_name, "H.csv")).values.squeeze()
+
+    fdr_levels = np.linspace(0.0, 1.0, num=1000)
+
+    ## Fit nonadditive causal2groups
+    kernel_causal2groups = KernelNonadditiveCausal2G(kernel_n_neighbors=[50, 100, 200], kernel_bandwidth_neighbors=[2, 5, 10, 50, 100, 500])
+    kernel_causal2groups.fit(X=X, Y=Y, T=T)
+    
+    ## Raw null probability scores
+    raw_df = pd.DataFrame({"H":H[T==1], "q_value":kernel_causal2groups.null_posterior[T==1]})
+    raw_df.to_csv(os.path.join(dir_name, "nonadditive_causal2groups_raw.csv"))
+
+    ## No empirical control
+    obs_fdr, obs_pow = kernel_causal2groups.calculate_fdr(T=T, H=H, fdr_levels=fdr_levels, empirical_control=False)
+    fdr_df = pd.DataFrame({"Nominal FDR":fdr_levels, "Observed FDR":obs_fdr, "Observed power":obs_pow, "N":N, "tau":tau, "seed":seed})
+    fdr_df.to_csv(os.path.join(dir_name, "nonadditive_causal2groups.csv"))
+
+    ## With empirical control
+    obs_fdr, obs_pow = kernel_causal2groups.calculate_fdr(T=T, H=H, fdr_levels=fdr_levels, empirical_control=True)
+    fdr_df = pd.DataFrame({"Nominal FDR":fdr_levels, "Observed FDR":obs_fdr, "Observed power":obs_pow, "N":N, "tau":tau, "seed":seed})
+    fdr_df.to_csv(os.path.join(dir_name, "nonadditive_causal2groups_ec.csv"))
+
+
+    ## Fit additive causal2groups
+    add_causal2groups = AdditiveCausal2G(verbose=True)
+    add_causal2groups.fit(X=X, Y=Y, T=T)
+    
+    raw_df = pd.DataFrame({"H":H[T==1], "q_value":add_causal2groups.null_posterior[T==1]})
+    raw_df.to_csv(os.path.join(dir_name, "additive_causal2groups_raw.csv"))
+
+    ## No empirical control
+    obs_fdr, obs_pow = add_causal2groups.calculate_fdr(T=T, H=H, fdr_levels=fdr_levels, empirical_control=False)
+    fdr_df = pd.DataFrame({"Nominal FDR":fdr_levels, "Observed FDR":obs_fdr, "Observed power":obs_pow, "N":N, "tau":tau, "seed":seed})
+    fdr_df.to_csv(os.path.join(dir_name, "additive_causal2groups.csv"))
+
+    ## With empirical control
+    obs_fdr, obs_pow = add_causal2groups.calculate_fdr(T=T, H=H, fdr_levels=fdr_levels, empirical_control=True)
+    fdr_df = pd.DataFrame({"Nominal FDR":fdr_levels, "Observed FDR":obs_fdr, "Observed power":obs_pow, "N":N, "tau":tau, "seed":seed})
+    fdr_df.to_csv(os.path.join(dir_name, "additive_causal2groups_ec.csv"))
+
+    ## Run BART
+    subprocess.call(["Rscript", "--vanilla", "R/bart.R", dir_name])
+
+    ## Run causal forest
+    subprocess.call(["Rscript", "--vanilla", "R/causal_forests.R", dir_name])
+
+    ## Run FDRreg
+    subprocess.call(["Rscript", "--vanilla", "R/FDRreg.R", dir_name])
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--n_workers', type=int, default=1)
+    parser.add_argument('--worker_id', type=int, default=0)
+    parser.add_argument('--setting', type=str, default="additive")
+    args = parser.parse_args()
+
+    n_workers:int = args.n_workers
+    worker_id:int = args.worker_id
+    setting:str = args.setting
+    if worker_id >= n_workers:
+        sys.exit()
+
+    os.makedirs("results", exist_ok=True)
+
+    
+    ## Settings
+    if setting in ['additive', 'nonadditive']:
+        taus = [1, 3, 5]
+        Ns = [1000, 10000]
+        seeds = np.arange(100, 130)
+        setups = list(product(Ns, taus, seeds))
+    else:
+        seeds = np.arange(100, 130)
+        setups = seeds
+        features_df = pd.read_csv("./data/all_features.csv", index_col=0)
+        outcomes_df = pd.read_csv('./data/all_outcomes.csv')
+        drug_df = pd.read_csv('./data/gdsc_drug_details.csv')
+
+
+    ## Assign each worker to its corresponding setting
+    setup_assignment = np.array_split(setups, n_workers)
+    curr_setups = setup_assignment[worker_id]
+
+
+    for setup in curr_setups:
+        if setting in ['additive', 'nonadditive']:
+            N, tau, seed = setup
+            dir_name = "results/{}/N_{}_tau{}_seed_{}".format(setting, N, tau, seed)
+            os.makedirs(dir_name, exist_ok=True)
+            if setting == 'additive':
+                sim_data = AdditiveSimulatedData(P=10, tau=tau, seed=seed)
+            else:
+                sim_data = NonadditiveSimulatedData(P=10, tau=tau, seed=seed)
+
+            X, Y, T, H, H_prob = sim_data.generate_data(N)
+        else:
+            seed = setup
+            dir_name = "results/nutlin/pca_seed_{}".format(seed)
+            sim_data = GDSCSemiSynthetic(features_df=features_df,
+                                 outcomes_df=outcomes_df,
+                                 drug_df=drug_df, 
+                                 drug='Nutlin-3a (-)',
+                                 mutations=['TP53'], 
+                                 conditions=[0], 
+                                 seed=seed)
+
+            X, Y, T, H = sim_data.generate_data(pca=True)
+        
+        ## Write out the directory
+        os.makedirs(dir_name, exist_ok=True)
+        
+        ## Boolean variables -> 0, 1 integer
+        T = T.astype(int)
+        H = H.astype(int)
+        
+        ## Save the data out
+        for a,a_name in [(X,"X.csv"), (Y, "Y.csv"), (T, "T.csv"), (H, "H.csv")]:
+            df = pd.DataFrame(data=a)
+            df.to_csv(os.path.join(dir_name, a_name), index=False)
+
+        ## Run the simulation
+        run_simulation(dir_name, seed)
+    
+
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

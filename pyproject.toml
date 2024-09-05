@@ -1,0 +1,37 @@
+[project]
+name = "causal2groups"
+version = "1.0.0"
+description = "Testing for individual causal effects in observational data with FDR control."
+readme = "README.md"
+requires-python = ">=3.11"
+license = {file = "LICENSE.txt"}
+keywords = ['causality', 'causal-inference', 'fdr', 'empirical-bayes']
+authors = [
+    {name = "Christopher Tosh", email = "christopher.j.tosh@gmail.com" },
+    {name = "Boyuan Zhang", email = "boyuan.zhang@nyu.edu"},
+    {name = "Wesley Tansey", email = "TanseyW@mskcc.org" }
+]
+maintainers = [
+    {name = "Christopher Tosh", email = "christopher.j.tosh@gmail.com" },
+    {name = "Wesley Tansey", email = "TanseyW@mskcc.org" }
+]
+classifiers = [
+    'Intended Audience :: Science/Research',
+    'Programming Language :: Python'
+]
+
+dependencies = [
+        "numpy",
+        "seaborn",
+        "scipy",
+        "scikit-learn",
+        "pandas"
+]
+
+[project.urls]
+"Homepage" = "https://github.com/tansey-lab/causal-fdr"
+"Source" = "https://github.com/tansey-lab/causal-fdr"
+
+[build-system]
+requires = ["setuptools>=43.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
