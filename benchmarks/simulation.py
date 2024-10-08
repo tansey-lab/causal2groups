@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 from causal2groups.simulated_data import AdditiveSimulatedData, NonadditiveSimulatedData, GDSCSemiSynthetic
 from causal2groups.kernel_nonadditive import KernelNonadditiveCausal2G
+from causal2groups.frequentist import KernelFrequentist
 from causal2groups.additive import AdditiveCausal2G
 from itertools import product
 import subprocess
@@ -54,6 +55,15 @@ def run_simulation(dir_name, seed):
     obs_fdr, obs_pow = add_causal2groups.calculate_fdr(T=T, H=H, fdr_levels=fdr_levels, empirical_control=True)
     fdr_df = pd.DataFrame({"Nominal FDR":fdr_levels, "Observed FDR":obs_fdr, "Observed power":obs_pow, "N":N, "tau":tau, "seed":seed})
     fdr_df.to_csv(os.path.join(dir_name, "additive_causal2groups_ec.csv"))
+
+
+    ## Fit frequentist model
+    kernel_freq = KernelFrequentist(kernel_n_neighbors=[50, 100, 200], kernel_bandwidth_neighbors=[2, 5, 10, 50, 100, 500])
+    kernel_freq.fit(X=X, Y=Y, T=T)
+
+    obs_fdr, obs_pow = kernel_freq.calculate_fdr(T=T, H=H, fdr_levels=fdr_levels)
+    fdr_df = pd.DataFrame({"Nominal FDR":fdr_levels, "Observed FDR":obs_fdr, "Observed power":obs_pow, "N":N, "tau":tau, "seed":seed})
+    fdr_df.to_csv(os.path.join(dir_name, "frequentist.csv"))
 
     ## Run BART
     subprocess.call(["Rscript", "--vanilla", "R/bart.R", dir_name])
@@ -138,16 +148,6 @@ if __name__ == '__main__':
 
         ## Run the simulation
         run_simulation(dir_name, seed)
-    
-
-    
-
-
-
-
-
-
-
 
 
 

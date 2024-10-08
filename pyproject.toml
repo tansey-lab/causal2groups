@@ -22,6 +22,7 @@ classifiers = [
 
 dependencies = [
         "numpy",
+        "tqdm",
         "seaborn",
         "scipy",
         "scikit-learn",
