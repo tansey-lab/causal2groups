@@ -19,64 +19,68 @@ def run_simulation(dir_name, N, tau, seed):
     H = pd.read_csv(os.path.join(dir_name, "H.csv")).values.squeeze()
 
     fdr_levels = np.linspace(0.0, 1.0, num=1000)
+    if not os.path.isfile(os.path.join(dir_name, "nonadditive_causal2groups_ec.csv")):
+        ## Fit nonadditive causal2groups
+        kernel_causal2groups = KernelNonadditiveCausal2G(kernel_n_neighbors=[50, 100, 200], 
+                                                        kernel_bandwidth_neighbors=[2, 5, 10, 50, 100, 500], 
+                                                        verbose=True)
+        kernel_causal2groups.fit(X=X, Y=Y, T=T)
+        
+        ## Raw null probability scores
+        raw_df = pd.DataFrame({"H":H[T==1], "q_value":kernel_causal2groups.null_posterior[T==1]})
+        raw_df.to_csv(os.path.join(dir_name, "nonadditive_causal2groups_raw.csv"))
 
-    ## Fit nonadditive causal2groups
-    kernel_causal2groups = KernelNonadditiveCausal2G(kernel_n_neighbors=[50, 100, 200], 
-                                                     kernel_bandwidth_neighbors=[2, 5, 10, 50, 100, 500], 
-                                                     verbose=True)
-    kernel_causal2groups.fit(X=X, Y=Y, T=T)
-    
-    ## Raw null probability scores
-    raw_df = pd.DataFrame({"H":H[T==1], "q_value":kernel_causal2groups.null_posterior[T==1]})
-    raw_df.to_csv(os.path.join(dir_name, "nonadditive_causal2groups_raw.csv"))
+        ## No empirical control
+        obs_fdr, obs_pow = kernel_causal2groups.calculate_fdr(T=T, H=H, fdr_levels=fdr_levels, empirical_control=False)
+        fdr_df = pd.DataFrame({"Nominal FDR":fdr_levels, "Observed FDR":obs_fdr, "Observed power":obs_pow, "N":N, "tau":tau, "seed":seed})
+        fdr_df.to_csv(os.path.join(dir_name, "nonadditive_causal2groups.csv"))
 
-    ## No empirical control
-    obs_fdr, obs_pow = kernel_causal2groups.calculate_fdr(T=T, H=H, fdr_levels=fdr_levels, empirical_control=False)
-    fdr_df = pd.DataFrame({"Nominal FDR":fdr_levels, "Observed FDR":obs_fdr, "Observed power":obs_pow, "N":N, "tau":tau, "seed":seed})
-    fdr_df.to_csv(os.path.join(dir_name, "nonadditive_causal2groups.csv"))
+        ## With empirical control
+        obs_fdr, obs_pow = kernel_causal2groups.calculate_fdr(T=T, H=H, fdr_levels=fdr_levels, empirical_control=True)
+        fdr_df = pd.DataFrame({"Nominal FDR":fdr_levels, "Observed FDR":obs_fdr, "Observed power":obs_pow, "N":N, "tau":tau, "seed":seed})
+        fdr_df.to_csv(os.path.join(dir_name, "nonadditive_causal2groups_ec.csv"))
 
-    ## With empirical control
-    obs_fdr, obs_pow = kernel_causal2groups.calculate_fdr(T=T, H=H, fdr_levels=fdr_levels, empirical_control=True)
-    fdr_df = pd.DataFrame({"Nominal FDR":fdr_levels, "Observed FDR":obs_fdr, "Observed power":obs_pow, "N":N, "tau":tau, "seed":seed})
-    fdr_df.to_csv(os.path.join(dir_name, "nonadditive_causal2groups_ec.csv"))
+    if not os.path.isfile(os.path.join(dir_name, "additive_causal2groups_ec.csv")):
+        ## Fit additive causal2groups
+        add_causal2groups = KernelAdditiveCausal2G(kernel_bandwidth_neighbors=[2, 5, 10, 50, 100, 500], 
+                                                kernel_reg_params=np.logspace(-5, 5, num=50),
+                                                seed=seed,
+                                                verbose=True)
+        add_causal2groups.fit(X=X, Y=Y, T=T)
+        
+        raw_df = pd.DataFrame({"H":H[T==1], "q_value":add_causal2groups.null_posterior[T==1]})
+        raw_df.to_csv(os.path.join(dir_name, "additive_causal2groups_raw.csv"))
 
-    ## Fit additive causal2groups
-    add_causal2groups = KernelAdditiveCausal2G(kernel_bandwidth_neighbors=[2, 5, 10, 50, 100, 500], 
-                                               kernel_reg_params=np.logspace(-5, 5, num=50),
-                                               seed=seed,
-                                               verbose=True)
-    add_causal2groups.fit(X=X, Y=Y, T=T)
-    
-    raw_df = pd.DataFrame({"H":H[T==1], "q_value":add_causal2groups.null_posterior[T==1]})
-    raw_df.to_csv(os.path.join(dir_name, "additive_causal2groups_raw.csv"))
+        ## No empirical control
+        obs_fdr, obs_pow = add_causal2groups.calculate_fdr(T=T, H=H, fdr_levels=fdr_levels, empirical_control=False)
+        fdr_df = pd.DataFrame({"Nominal FDR":fdr_levels, "Observed FDR":obs_fdr, "Observed power":obs_pow, "N":N, "tau":tau, "seed":seed})
+        fdr_df.to_csv(os.path.join(dir_name, "additive_causal2groups.csv"))
 
-    ## No empirical control
-    obs_fdr, obs_pow = add_causal2groups.calculate_fdr(T=T, H=H, fdr_levels=fdr_levels, empirical_control=False)
-    fdr_df = pd.DataFrame({"Nominal FDR":fdr_levels, "Observed FDR":obs_fdr, "Observed power":obs_pow, "N":N, "tau":tau, "seed":seed})
-    fdr_df.to_csv(os.path.join(dir_name, "additive_causal2groups.csv"))
+        ## With empirical control
+        obs_fdr, obs_pow = add_causal2groups.calculate_fdr(T=T, H=H, fdr_levels=fdr_levels, empirical_control=True)
+        fdr_df = pd.DataFrame({"Nominal FDR":fdr_levels, "Observed FDR":obs_fdr, "Observed power":obs_pow, "N":N, "tau":tau, "seed":seed})
+        fdr_df.to_csv(os.path.join(dir_name, "additive_causal2groups_ec.csv"))
 
-    ## With empirical control
-    obs_fdr, obs_pow = add_causal2groups.calculate_fdr(T=T, H=H, fdr_levels=fdr_levels, empirical_control=True)
-    fdr_df = pd.DataFrame({"Nominal FDR":fdr_levels, "Observed FDR":obs_fdr, "Observed power":obs_pow, "N":N, "tau":tau, "seed":seed})
-    fdr_df.to_csv(os.path.join(dir_name, "additive_causal2groups_ec.csv"))
+    if not os.path.isfile(os.path.join(dir_name, "frequentist.csv")):
+        ## Fit frequentist model
+        kernel_freq = KernelFrequentist(kernel_n_neighbors=[50, 100, 200], kernel_bandwidth_neighbors=[2, 5, 10, 50, 100, 500])
+        kernel_freq.fit(X=X, Y=Y, T=T)
 
+        obs_fdr, obs_pow = kernel_freq.calculate_fdr(T=T, H=H, fdr_levels=fdr_levels)
+        fdr_df = pd.DataFrame({"Nominal FDR":fdr_levels, "Observed FDR":obs_fdr, "Observed power":obs_pow, "N":N, "tau":tau, "seed":seed})
+        fdr_df.to_csv(os.path.join(dir_name, "frequentist.csv"))
 
-    ## Fit frequentist model
-    kernel_freq = KernelFrequentist(kernel_n_neighbors=[50, 100, 200], kernel_bandwidth_neighbors=[2, 5, 10, 50, 100, 500])
-    kernel_freq.fit(X=X, Y=Y, T=T)
+    if not os.path.isfile(os.path.join(dir_name, "bart.csv")):
+        ## Run BART
+        subprocess.call(["Rscript", "--vanilla", "R/bart.R", dir_name])
 
-    obs_fdr, obs_pow = kernel_freq.calculate_fdr(T=T, H=H, fdr_levels=fdr_levels)
-    fdr_df = pd.DataFrame({"Nominal FDR":fdr_levels, "Observed FDR":obs_fdr, "Observed power":obs_pow, "N":N, "tau":tau, "seed":seed})
-    fdr_df.to_csv(os.path.join(dir_name, "frequentist.csv"))
+    if not os.path.isfile(os.path.join(dir_name, "causal_forest.csv")):
+        ## Run causal forest
+        subprocess.call(["Rscript", "--vanilla", "R/causal_forests.R", dir_name])
 
-    ## Run BART
-    subprocess.call(["Rscript", "--vanilla", "R/bart.R", dir_name])
-
-    ## Run causal forest
-    subprocess.call(["Rscript", "--vanilla", "R/causal_forests.R", dir_name])
-
-    ## Run FDRreg
-    subprocess.call(["Rscript", "--vanilla", "R/FDRreg.R", dir_name])
+    if not os.path.isfile(os.path.join(dir_name, "FDRreg.csv")):
+        ## Run FDRreg
+        subprocess.call(["Rscript", "--vanilla", "R/FDRreg.R", dir_name])
 
 
 if __name__ == '__main__':
