@@ -9,7 +9,7 @@ from itertools import product
 import subprocess
 import argparse
 
-def run_simulation(dir_name, seed):
+def run_simulation(dir_name, N, tau, seed):
     ## Set seed
     np.random.seed(seed)
 
@@ -127,6 +127,8 @@ if __name__ == '__main__':
             X, Y, T, H, H_prob = sim_data.generate_data(N)
         else:
             seed = setup
+            N = 0
+            tau = 0
             dir_name = "results/nutlin/pca_seed_{}".format(seed)
             sim_data = GDSCSemiSynthetic(features_df=features_df,
                                  outcomes_df=outcomes_df,
@@ -151,7 +153,7 @@ if __name__ == '__main__':
             df.to_csv(os.path.join(dir_name, a_name), index=False)
 
         ## Run the simulation
-        run_simulation(dir_name, seed)
+        run_simulation(dir_name, N, tau, seed)
 
 
 
