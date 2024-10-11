@@ -4,7 +4,7 @@ import pandas as pd
 from causal2groups.simulated_data import AdditiveSimulatedData, NonadditiveSimulatedData, GDSCSemiSynthetic
 from causal2groups.kernel_nonadditive import KernelNonadditiveCausal2G
 from causal2groups.frequentist import KernelFrequentist
-from causal2groups.additive import AdditiveCausal2G
+from causal2groups.kernel_additive import KernelAdditiveCausal2G
 from itertools import product
 import subprocess
 import argparse
@@ -38,9 +38,10 @@ def run_simulation(dir_name, seed):
     fdr_df = pd.DataFrame({"Nominal FDR":fdr_levels, "Observed FDR":obs_fdr, "Observed power":obs_pow, "N":N, "tau":tau, "seed":seed})
     fdr_df.to_csv(os.path.join(dir_name, "nonadditive_causal2groups_ec.csv"))
 
-
     ## Fit additive causal2groups
-    add_causal2groups = AdditiveCausal2G(verbose=True)
+    add_causal2groups = KernelAdditiveCausal2G(kernel_bandwidth_neighbors=[2, 5, 10, 50, 100, 500], 
+                                               kernel_reg_params=np.logspace(-5, 5, num=50),
+                                               verbose=True)
     add_causal2groups.fit(X=X, Y=Y, T=T)
     
     raw_df = pd.DataFrame({"H":H[T==1], "q_value":add_causal2groups.null_posterior[T==1]})

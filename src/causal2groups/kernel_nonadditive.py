@@ -38,7 +38,11 @@ class KernelNonadditiveCausal2G:
         if self.verbose:
             print('Fitting null model.')
 
-        self.null_model.fit_via_loo_cv(X=X[T==0], y=Y[T==0], n_neighbors=self.kernel_n_neighbors, bandwidth_neighbors=self.kernel_bandwidth_neighbors)
+        self.null_model.fit_via_loo_cv(X=X[T==0], 
+                                       y=Y[T==0], 
+                                       n_neighbors=self.kernel_n_neighbors, 
+                                       bandwidth_neighbors=self.kernel_bandwidth_neighbors, 
+                                       verbose=self.verbose)
 
         if self.verbose:
             print('Drawing bootstrap samples from treatment model.')
@@ -49,12 +53,16 @@ class KernelNonadditiveCausal2G:
         if self.verbose:
             print('Fitting treatment model.')
 
-        self.treatment_model.fit_via_loo_cv(X=X[T==1], y=Y[T==1], n_neighbors=self.kernel_n_neighbors, bandwidth_neighbors=self.kernel_bandwidth_neighbors)
+        self.treatment_model.fit_via_loo_cv(X=X[T==1], 
+                                            y=Y[T==1], 
+                                            n_neighbors=self.kernel_n_neighbors, 
+                                            bandwidth_neighbors=self.kernel_bandwidth_neighbors, 
+                                            verbose=self.verbose)
 
         if self.verbose:
             print('Drawing bootstrap samples from treatment model.')
 
-        treat_grid_boot = self.treatment_model.bootstrap(X, self.grid)
+        treat_grid_boot = self.treatment_model.bootstrap(X, self.grid, verbose=self.verbose)
 
         ## Take quantiles across bootstrap samples
         treat_grid_upper = np.quantile(treat_grid_boot, 1-self.bootstrap_quantile, axis=0)
@@ -62,10 +70,6 @@ class KernelNonadditiveCausal2G:
 
         null_grid_upper = np.quantile(null_grid_boot, 1-self.bootstrap_quantile, axis=0)
         null_grid_lower = np.quantile(null_grid_boot, self.bootstrap_quantile, axis=0)
-
-        # if self.verbose:
-        #     print('null grid lower')
-        #     print(null_grid_lower)
         
 
         ## Estimate conservative prior at each data point.
