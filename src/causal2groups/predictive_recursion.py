@@ -5,8 +5,7 @@ z-scores as an infinite mixture of gaussians.'''
 import numpy as np
 from scipy.stats import norm
 from scipy.interpolate import RegularGridInterpolator
-from scipy.integrate import cumulative_trapezoid as cumtrapz
-
+from scipy.integrate import trapezoid, cumulative_trapezoid
 
 class GridDistribution1D:
     def __init__(self, bins, w, discrete=False):
@@ -18,8 +17,8 @@ class GridDistribution1D:
             self.grid = self.discrete_grid
             self.cdf_grid = self.discrete_cdf_grid
         else:
-            self.w = w / np.trapezoid(w, bins)
-            self.w_cum = cumtrapz(self.w, self.bins, initial=0)
+            self.w = w / trapezoid(w, bins)
+            self.w_cum = cumulative_trapezoid(self.w, self.bins, initial=0)
             self.grid = RegularGridInterpolator((bins,), self.w, bounds_error=False, fill_value=0)
             self.cdf_grid = RegularGridInterpolator((bins,), self.w_cum, bounds_error=False, fill_value=0)
         
@@ -157,7 +156,7 @@ def estimate_density(y, bins=200, weights=None, tilts=None, nsweeps=10, sweepord
             #step_weight = (3. + i)**decay # Each iteration contributes slightly less
             step_weight = (3. + cum_weights)**decay
             f = w_sweep * tilts[k] * likelihoods[k] # prob of z_k coming from N(bins, 1) * current prior
-            m = max(1e-10, np.trapezoid(f, bins))
+            m = max(1e-10, trapezoid(f, bins))
             if i < len(y):
                 log_marginal += np.log(max(1e-10, m))
             w_sweep = (1. - step_weight * weights[k]) * w_sweep + step_weight * weights[k] * f/m # reweight
@@ -174,7 +173,7 @@ def estimate_density(y, bins=200, weights=None, tilts=None, nsweeps=10, sweepord
         z /= z.sum()
     else:
         # Continuous distribution over the support
-        z /= np.trapezoid(z, support_bins)
+        z /= trapezoid(z, support_bins)
 
     return {'bins': bins, 'support_bins': support_bins, 'dist': GridDistribution1D(support_bins, z, discrete=discrete),
             'w': w, 'z': z, 'logm': log_marginal, 'sweeporder': sweeporder}
