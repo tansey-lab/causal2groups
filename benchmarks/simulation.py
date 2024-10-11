@@ -41,6 +41,7 @@ def run_simulation(dir_name, seed):
     ## Fit additive causal2groups
     add_causal2groups = KernelAdditiveCausal2G(kernel_bandwidth_neighbors=[2, 5, 10, 50, 100, 500], 
                                                kernel_reg_params=np.logspace(-5, 5, num=50),
+                                               seed=seed,
                                                verbose=True)
     add_causal2groups.fit(X=X, Y=Y, T=T)
     
