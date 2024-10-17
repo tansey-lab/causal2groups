@@ -4,7 +4,7 @@ import pandas as pd
 from causal2groups.simulated_data import AdditiveSimulatedData, NonadditiveSimulatedData, GDSCSemiSynthetic
 from causal2groups.kernel_nonadditive import KernelNonadditiveCausal2G
 from causal2groups.frequentist import KernelFrequentist
-from causal2groups.kernel_additive import KernelAdditiveCausal2G
+from causal2groups.additive import AdditiveCausal2G
 from itertools import product
 import subprocess
 import argparse
@@ -18,6 +18,7 @@ def run_simulation(dir_name, N, tau, seed):
     T = pd.read_csv(os.path.join(dir_name, "T.csv")).values.squeeze()
     H = pd.read_csv(os.path.join(dir_name, "H.csv")).values.squeeze()
 
+    P = X.shape[1]
     fdr_levels = np.linspace(0.0, 1.0, num=1000)
     if not os.path.isfile(os.path.join(dir_name, "nonadditive_causal2groups_ec.csv")):
         ## Fit nonadditive causal2groups
@@ -42,10 +43,12 @@ def run_simulation(dir_name, N, tau, seed):
 
     if not os.path.isfile(os.path.join(dir_name, "additive_causal2groups_ec.csv")):
         ## Fit additive causal2groups
-        add_causal2groups = KernelAdditiveCausal2G(kernel_bandwidth_neighbors=[2, 5, 10, 50, 100, 500], 
-                                                kernel_reg_params=np.logspace(-5, 5, num=50),
-                                                seed=seed,
-                                                verbose=True)
+        add_causal2groups = AdditiveCausal2G(n_covariates=P, 
+                                             rff_dims=100,
+                                             kernel_n_bandwidths=6, 
+                                             kernel_reg_params=np.logspace(-5, 5, num=50),
+                                             seed=seed,
+                                             verbose=True)
         add_causal2groups.fit(X=X, Y=Y, T=T)
         
         raw_df = pd.DataFrame({"H":H[T==1], "q_value":add_causal2groups.null_posterior[T==1]})

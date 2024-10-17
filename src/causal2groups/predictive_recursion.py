@@ -21,12 +21,6 @@ class GridDistribution1D:
             self.w_cum = cumulative_trapezoid(self.w, self.bins, initial=0)
             self.grid = RegularGridInterpolator((bins,), self.w, bounds_error=False, fill_value=0)
             self.cdf_grid = RegularGridInterpolator((bins,), self.w_cum, bounds_error=False, fill_value=0)
-        
-        # a = np.concatenate([[0], np.cumsum(((self.bins[1:] - self.bins[:-1]) * (self.w[1:] + self.w[:-1])) / 2).clip(1e-8,1-1e-8)])
-        # too_small = np.abs(a[1:-1] - a[:-2]) <= 1e-3
-        # a = np.concatenate([[0], a[1:-1][~too_small], [1]])
-        # b = np.concatenate([[self.bins[0]],self.bins[1:-1][~too_small], [self.bins[-1]]])
-        # self.ppf_grid = RegularGridInterpolator((a,), b, bounds_error=True)
 
         # Quick and dirty expectation (TODO: better estimate this)
         self.expectation = (self.grid(self.bins) * self.bins).sum() / self.grid(self.bins).sum()
@@ -58,6 +52,14 @@ class GridDistribution1D:
         x, bins = self.bins_expand(x)
         return self.w_cum[np.argmax(bins==x, axis=-1)]
 
+    def mean(self):
+        mean = trapezoid(y=self.grid(self.bins)*self.bins, x=self.bins)
+        return(mean)
+    
+    def variance(self):
+        sq = trapezoid(y=self.grid(self.bins)*np.square(self.bins), x=self.bins)
+        var = sq-np.square(self.mean())
+        return(var)
 
 def generate_sweeps(num_sweeps, num_samples):
     '''Creates random sweeps over the data.'''
@@ -175,7 +177,9 @@ def estimate_density(y, bins=200, weights=None, tilts=None, nsweeps=10, sweepord
         # Continuous distribution over the support
         z /= trapezoid(z, support_bins)
 
-    return {'bins': bins, 'support_bins': support_bins, 'dist': GridDistribution1D(support_bins, z, discrete=discrete),
+    return {'bins': bins, 
+            'support_bins': support_bins, 
+            'dist': GridDistribution1D(support_bins, z, discrete=discrete),
             'w': w, 'z': z, 'logm': log_marginal, 'sweeporder': sweeporder}
 
 

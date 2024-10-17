@@ -37,33 +37,14 @@ def loo_predictions(K_diag, Q, Lam, y, lam):
     y_part_pred = (y_full_pred - (beta*y))/(1-beta)
     return(y_part_pred)
 
-
-def loo_residuals(K_diag, Q, Lam, y, lam):
-    '''
-        Computes leave-one-out residiuals for kernel ridge regression 
-        with kernel matrix K, responses y, regularization parameter lam.
-
-        Inputs:
-            K: kernel matrix
-            Q, Lam: eigendecomposition K = Q @ np.diag(Lam) @ Q.T 
-            y: responses
-            lam: regularization parameter
-    '''
-
-    y_part_pred = loo_predictions(K_diag, Q, Lam, y, lam)
-
-    return(y - y_part_pred)
-
 class KernelRidgeRegression:
-    def __init__(self, bandwidth_neighbors, reg_params):
+    def __init__(self, n_bandwidths, reg_params):
         super().__init__()
-        if isinstance(bandwidth_neighbors, int):
-            bandwidth_neighbors = [bandwidth_neighbors]
 
-        if isinstance(bandwidth_neighbors, float):
+        if isinstance(reg_params, float):
             reg_params = [reg_params]
 
-        self.bandwidth_neighbors = bandwidth_neighbors
+        self.n_bandwidths = n_bandwidths
         self.reg_params = reg_params
         self.eigen_lookup = None
         self.kdiag_lookup = None
@@ -77,23 +58,28 @@ class KernelRidgeRegression:
                     verbose:bool=False):
         
         self.X = X
+        self.X_stdv = np.std(X, axis=0, keepdims=True)
+        self.X_mean = np.mean(X, axis=0, keepdims=True)
+        self.X_transform = (X- self.X_mean)/self.X_stdv
+
         self.y = y
+        self.y_stdv = np.std(y)
+        self.y_mean = np.mean(y)
+        self.y_transform = (y- self.y_mean)/self.y_stdv
 
         recalc_flag = recalculate_eigen_lookup or (self.eigen_lookup is None)
 
         if recalc_flag:
             n_points, _ = X.shape
-            bandwidth_neighbors = np.unique(np.maximum(np.minimum(self.bandwidth_neighbors, (n_points-1)),1))
 
-            self.sq_dists = squareform(pdist(X, metric='sqeuclidean'))
+            self.sq_dists = squareform(pdist(self.X_transform, metric='sqeuclidean'))
 
             ## Candidate bandwidths are given by median distance to nearest neighbors
             sorted_dists = np.sort(self.sq_dists, axis=1)
             med_dists = np.median(sorted_dists, axis=0)
-            bandwidths = med_dists[bandwidth_neighbors]
-
-            ## Double the number of bandwidths just to be sure
-            bandwidths = np.concatenate([bandwidths, np.max(bandwidths)*np.logspace(np.log10(2), 2, num=bandwidths.shape[0])])
+            dmin = np.min(med_dists[med_dists>0])
+            dmax = med_dists[-1]
+            bandwidths = np.logspace(np.log10(dmin), 2*(np.log10(dmax) - np.log10(dmin)), num=self.n_bandwidths)
         else:
             bandwidths = list(self.eigen_lookup.keys())
             
@@ -111,7 +97,7 @@ class KernelRidgeRegression:
                 eigen_lookup[bwidth] = self.eigen_lookup[bwidth]
                 kdiag_lookup[bwidth] = self.kdiag_lookup[bwidth]
 
-            Qty = np.dot(Q.T, y)
+            Qty = np.dot(Q.T, self.y_transform)
             errs = [gcv(Lam, Qty, lam) for lam in self.reg_params]
             self.cv_errs.update({(bwidth, lam):err for lam,err in zip(self.reg_params, errs)})
 
@@ -128,53 +114,60 @@ class KernelRidgeRegression:
             self.kdiag_lookup = kdiag_lookup
 
     def loo_predictions(self):
-        return(loo_predictions(self.K_diag, self.Q, self.Lam, self.y, self.lam))
+        y_pred_transform = loo_predictions(self.K_diag, self.Q, self.Lam, self.y_transform, self.lam)
+        y_pred = y_pred_transform*self.y_stdv + self.y_mean
+        return(y_pred)
 
     def loo_residuals(self):
-        return(loo_residuals(self.K_diag, self.Q, self.Lam, self.y, self.lam))
+        y_pred = self.loo_predictions()
+        return(self.y-y_pred)
 
 
-    def fit(self, X, y, bandwidth, lam):
-        self.X = X
-        self.y = y
-        self.sq_dists = squareform(pdist(X, metric="sqeuclidean"))
-        self.bandwidth = bandwidth
-        self.lam = lam 
+    # def fit(self, X, y, bandwidth, lam):
+    #     self.X = X
+    #     self.y = y
+    #     self.sq_dists = squareform(pdist(X, metric="sqeuclidean"))
+    #     self.bandwidth = bandwidth
+    #     self.lam = lam 
 
-        K = np.exp(-0.5*self.sq_dists/self.bandwidth)
-        self.Lam, self.Q = np.linalg.eigh(K)
-        self.K_diag = np.diag(K)
+    #     K = np.exp(-0.5*self.sq_dists/self.bandwidth)
+    #     self.Lam, self.Q = np.linalg.eigh(K)
+    #     self.K_diag = np.diag(K)
 
-    def update(self, X=None, y=None, bandwidth=None, lam=None):
-        update_K_inv = False
+    # def update(self, X=None, y=None, bandwidth=None, lam=None):
+    #     update_K_inv = False
 
-        if X is not None:
-            self.X = X
-            self.sq_dists = squareform(pdist(X, metric="sqeuclidean"))
-            update_K_inv = True
+    #     if X is not None:
+    #         self.X = X
+    #         self.sq_dists = squareform(pdist(X, metric="sqeuclidean"))
+    #         update_K_inv = True
 
-        if y is not None:
-            self.y = y
+    #     if y is not None:
+    #         self.y = y
 
-        if lam is not None:
-            self.lam = lam
-            update_K_inv = True
+    #     if lam is not None:
+    #         self.lam = lam
+    #         update_K_inv = True
         
-        if bandwidth is not None:
-            self.bandwidth = bandwidth
-            update_K_inv = True
+    #     if bandwidth is not None:
+    #         self.bandwidth = bandwidth
+    #         update_K_inv = True
         
-        if update_K_inv:
-            K = np.exp(-0.5*self.sq_dists/self.bandwidth)
-            self.Lam, self.Q = np.linalg.eigh(K)
-            self.K_diag = np.diag(K)
+    #     if update_K_inv:
+    #         K = np.exp(-0.5*self.sq_dists/self.bandwidth)
+    #         self.Lam, self.Q = np.linalg.eigh(K)
+    #         self.K_diag = np.diag(K)
 
 
     def predict(self, X_pred):
-        sq_dists_cross = cdist(X_pred, self.X, metric="sqeuclidean") ## n_pred x n
+        X_pred_transform = (X_pred- self.X_mean)/self.X_stdv
+
+        sq_dists_cross = cdist(X_pred_transform, self.X_transform, metric="sqeuclidean") ## n_pred x n
 
         K_cross = np.exp(-0.5*sq_dists_cross/self.bandwidth) 
 
-        y_pred = np.linalg.multi_dot([K_cross, self.Q, np.diag(1/(self.Lam + self.lam)), self.Q.T, self.y])
+        y_pred_transform = np.linalg.multi_dot([K_cross, self.Q, np.diag(1/(self.Lam + self.lam)), self.Q.T, self.y_transform])
+
+        y_pred = y_pred_transform*self.y_stdv + self.y_mean
 
         return(y_pred)

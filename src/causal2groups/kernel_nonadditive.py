@@ -1,10 +1,3 @@
-'''
-Causal Two-Groups with generic models:
-
-Y_i = f(X_i, epsilon_i), epsilon_i ~ iid P(epsilon)
-
-Assumes only SUTVA and no interference.
-'''
 import numpy as np
 from tqdm import trange
 from causal2groups.kernel_density import ConditionalKDE
