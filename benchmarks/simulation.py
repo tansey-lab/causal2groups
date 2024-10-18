@@ -66,7 +66,8 @@ def run_simulation(dir_name, N, tau, seed):
 
     if not os.path.isfile(os.path.join(dir_name, "frequentist_raw.csv")):
         ## Fit frequentist model
-        kernel_freq = KernelFrequentist(kernel_n_neighbors=[50, 100, 200], kernel_bandwidth_neighbors=[2, 5, 10, 50, 100, 500])
+        kernel_freq = KernelFrequentist(kernel_n_neighbors=[50, 100, 200], 
+                                        kernel_bandwidth_neighbors=[2, 5, 10, 50, 100, 500])
         kernel_freq.fit(X=X, Y=Y, T=T)
 
         obs_fdr, obs_pow = kernel_freq.calculate_fdr(T=T, H=H, fdr_levels=fdr_levels)
