@@ -64,7 +64,7 @@ def run_simulation(dir_name, N, tau, seed):
         fdr_df = pd.DataFrame({"Nominal FDR":fdr_levels, "Observed FDR":obs_fdr, "Observed power":obs_pow, "N":N, "tau":tau, "seed":seed})
         fdr_df.to_csv(os.path.join(dir_name, "additive_causal2groups_ec.csv"))
 
-    if not os.path.isfile(os.path.join(dir_name, "frequentist.csv")):
+    if not os.path.isfile(os.path.join(dir_name, "frequentist_raw.csv")):
         ## Fit frequentist model
         kernel_freq = KernelFrequentist(kernel_n_neighbors=[50, 100, 200], kernel_bandwidth_neighbors=[2, 5, 10, 50, 100, 500])
         kernel_freq.fit(X=X, Y=Y, T=T)
@@ -72,6 +72,10 @@ def run_simulation(dir_name, N, tau, seed):
         obs_fdr, obs_pow = kernel_freq.calculate_fdr(T=T, H=H, fdr_levels=fdr_levels)
         fdr_df = pd.DataFrame({"Nominal FDR":fdr_levels, "Observed FDR":obs_fdr, "Observed power":obs_pow, "N":N, "tau":tau, "seed":seed})
         fdr_df.to_csv(os.path.join(dir_name, "frequentist.csv"))
+
+        raw_df = pd.DataFrame({"H":H[T==1], "q_value":kernel_freq.null_density[T==1]})
+        raw_df.to_csv(os.path.join(dir_name, "additive_causal2groups_raw.csv"))
+
 
     if not os.path.isfile(os.path.join(dir_name, "bart.csv")):
         ## Run BART

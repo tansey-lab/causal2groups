@@ -205,7 +205,7 @@ full2color = {"KC2G":"tab:orange",
               "BART":"tab:pink", 
               "FDRreg":"tab:green", 
               "KC2G-EC":"tab:purple", 
-              "AC2G-EC":"tab:red", }
+              "AC2G-EC":"tab:red"}
 
 if __name__=="main":
     # full2color = dict(zip(np.unique(list(abbrev2full.values())),colors))

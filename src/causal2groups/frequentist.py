@@ -8,7 +8,6 @@ class KernelFrequentist:
                  kernel_n_neighbors:list, 
                  kernel_bandwidth_neighbors:list,
                  n_bootstraps:int=100,
-                 bootstrap_quantile:float=0.2,
                  density_thresh:float=0.05,
                  n_grid:int=75,
                  verbose:bool=False):
@@ -17,7 +16,6 @@ class KernelFrequentist:
         self.kernel_n_neighbors = kernel_n_neighbors
         self.kernel_bandwidth_neighbors = kernel_bandwidth_neighbors
         self.n_bootstraps = n_bootstraps
-        self.bootstrap_quantile = bootstrap_quantile
         self.density_thresh = density_thresh
         self.n_grid = n_grid
         self.verbose = verbose
@@ -37,15 +35,15 @@ class KernelFrequentist:
         self.grid = np.linspace(np.min(Y), np.max(Y), num=self.n_grid)
         null_grid_boot = self.null_model.bootstrap(X, self.grid)
 
-        null_grid_upper = np.quantile(null_grid_boot, 1-self.bootstrap_quantile, axis=0)
+        null_grid_median = np.median(null_grid_boot, 0.5, axis=0)
         ## Linearly interpolate densities at grid
-        null_density_upper = []
-        for i in trange(null_grid_upper.shape[0]):
-            null_density_upper.append(np.interp(Y[i], self.grid, null_grid_upper[i]))
-        self.null_density_upper = np.array(null_density_upper)
+        null_density = []
+        for i in trange(null_grid_median.shape[0]):
+            null_density.append(np.interp(Y[i], self.grid, null_grid_median[i]))
+        self.null_density = np.array(null_density)
 
     def calculate_fdr(self, T:np.ndarray, H:np.ndarray, fdr_levels:np.ndarray):
-        p_vals = self.null_density_upper.copy()
+        p_vals = self.null_density.copy()
         p_vals_treated = p_vals[T==1]
         H_treated = H[T==1]
         qvals = false_discovery_control(p_vals_treated)
