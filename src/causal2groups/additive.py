@@ -195,14 +195,18 @@ class AdditiveCausal2G:
             n_null_selected = np.array([np.sum(null_running_average<=alpha) for alpha in fdr_levels])
 
             ## Conservative fdr estimate is # null selected/ # treated selected
-            fdr_estimate = n_null_selected/np.clip(n_treat_selected, 1, np.inf)
+            fdr_estimate = n_null_selected/np.clip(n_treat_selected, a_min=1, a_max=np.inf)
             
             for i, alpha in enumerate(fdr_levels):
                 ## Locate largest fdr level where estimate does not exceed desired alpha.
                 fdr_estimate_idx = np.where(fdr_estimate <= alpha)[0]
-                j = np.max(fdr_estimate_idx[fdr_estimate_idx<=i])
-                alpha_j = fdr_levels[j]
-
+                valid_idx = fdr_estimate_idx[fdr_estimate_idx<=i]
+                if len(valid_idx)>0:
+                    j = np.max(valid_idx)
+                    alpha_j = fdr_levels[j]
+                else:
+                    alpha_j = -0.1 ## No valid selections can be made
+                
                 ## Select points below this value
                 mask = treated_running_average<=alpha_j
                 num_sel = np.sum(mask)
