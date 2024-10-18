@@ -20,7 +20,7 @@ def run_simulation(dir_name, N, tau, seed):
 
     P = X.shape[1]
     fdr_levels = np.linspace(0.0, 1.0, num=1000)
-    if not os.path.isfile(os.path.join(dir_name, "nonadditive_causal2groups_ec.csv")):
+    if not os.path.isfile(os.path.join(dir_name, "nonadditive_causal2groups_full.csv")):
         ## Fit nonadditive causal2groups
         kernel_causal2groups = KernelNonadditiveCausal2G(kernel_n_neighbors=[50, 100, 200], 
                                                         kernel_bandwidth_neighbors=[2, 5, 10, 50, 100, 500], 
@@ -30,6 +30,10 @@ def run_simulation(dir_name, N, tau, seed):
         ## Raw null probability scores
         raw_df = pd.DataFrame({"H":H[T==1], "q_value":kernel_causal2groups.null_posterior[T==1]})
         raw_df.to_csv(os.path.join(dir_name, "nonadditive_causal2groups_raw.csv"))
+
+        full_df = pd.DataFrame({"H":H, "T":T, "q_value":kernel_causal2groups.null_posterior})
+        full_df.to_csv(os.path.join(dir_name, "nonadditive_causal2groups_full.csv"))
+
 
         ## No empirical control
         obs_fdr, obs_pow = kernel_causal2groups.calculate_fdr(T=T, H=H, fdr_levels=fdr_levels, empirical_control=False)
@@ -41,7 +45,7 @@ def run_simulation(dir_name, N, tau, seed):
         fdr_df = pd.DataFrame({"Nominal FDR":fdr_levels, "Observed FDR":obs_fdr, "Observed power":obs_pow, "N":N, "tau":tau, "seed":seed})
         fdr_df.to_csv(os.path.join(dir_name, "nonadditive_causal2groups_ec.csv"))
 
-    if not os.path.isfile(os.path.join(dir_name, "additive_causal2groups_ec.csv")):
+    if not os.path.isfile(os.path.join(dir_name, "additive_causal2groups_full.csv")):
         ## Fit additive causal2groups
         add_causal2groups = AdditiveCausal2G(n_covariates=P, 
                                              rff_dims=100,
@@ -53,6 +57,9 @@ def run_simulation(dir_name, N, tau, seed):
         
         raw_df = pd.DataFrame({"H":H[T==1], "q_value":add_causal2groups.null_posterior[T==1]})
         raw_df.to_csv(os.path.join(dir_name, "additive_causal2groups_raw.csv"))
+
+        full_df = pd.DataFrame({"H":H, "T":T, "q_value":add_causal2groups.null_posterior})
+        full_df.to_csv(os.path.join(dir_name, "additive_causal2groups_full.csv"))
 
         ## No empirical control
         obs_fdr, obs_pow = add_causal2groups.calculate_fdr(T=T, H=H, fdr_levels=fdr_levels, empirical_control=False)
