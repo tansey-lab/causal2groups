@@ -8,12 +8,8 @@ class ConditionalKDE:
     def __init__(self):
         super().__init__()
 
-    def control_underflow(self, arr, threshold=1e-50):
-        arr = np.array(arr)  # Ensure arr is a NumPy array
-        return np.where(arr < threshold, 1e-10, arr)
-
     ## Fit via leave-one-out cross-validation
-    def fit_via_loo_cv(self, X, y, n_neighbors, bandwidth_neighbors):   
+    def fit_via_loo_cv(self, X, y, n_neighbors, bandwidth_neighbors, verbose:bool=False):   
         self.X = X
         self.y = y
         if isinstance(n_neighbors, int):
@@ -47,7 +43,7 @@ class ConditionalKDE:
         
         params = list(product(n_neighbors, hxs, hys))
         log_likehoods = []
-        for n_neighbors, hx, hy in tqdm(params):
+        for n_neighbors, hx, hy in tqdm(params, disable=(not verbose)):
             sq_x_dists = np.square(D_x[:, :n_neighbors])
             sq_y_dists = np.square(D_y[:, :n_neighbors])
 
@@ -78,7 +74,7 @@ class ConditionalKDE:
         self.hy = hy
         
     
-    def predict_density(self, X_pred, y_pred, exclude_zero_dists:bool=True, progress_bar:bool=True):
+    def predict_density(self, X_pred, y_pred, exclude_zero_dists:bool=True, verbose:bool=False):
         n_pred_x, dim = X_pred.shape
         if len(y_pred.shape)==2:
             assert y_pred.shape[0] in [1, n_pred_x], "if len(y_pred.shape)==2, then must have y_pred.shape[0]==X_pred.shape[0] or 1"
@@ -101,18 +97,14 @@ class ConditionalKDE:
         k_x = np.power(1.0/(2*np.pi*hx_sq), 0.5*dim)*np.exp(-sq_x_dists/(2*hx_sq)) ## n_pred_x x n_neighbors
         k_x = k_x * mask ## Mask out restricted points
         denominators = np.mean(k_x, axis=-1) ## n_pred_x
-
-        # print('denominators')
-        # print(denominators)
         denominators = np.abs(denominators)
-        # denominators = self.control_underflow(denominators)
-        
+
         ## Run over the grid of values to predict for y
         chunk_size = 10
         chunks = np.array_split(np.arange(n_pred_y), max(n_pred_y//chunk_size, 1))
 
         results = []
-        for chunk in tqdm(chunks, disable=(not progress_bar)):
+        for chunk in tqdm(chunks, disable=(not verbose)):
             y_chunk = y_pred[:,chunk]
             D_y =  np.abs(y_train_neighbors[:,:,np.newaxis] - y_chunk[:,np.newaxis,:]) ## n_pred_x x n_neighbors x n_chunk
             sq_y_dists = np.square(D_y)
@@ -122,30 +114,26 @@ class ConditionalKDE:
             
             numerators = np.mean(k_x[:,:,np.newaxis]*k_y, axis=1) ## n_pred_x x n_chunk
             
-            # numerators = self.control_underflow(np.abs(numerators))
-            # print('numerators')
-            # print(numerators)
-
             vals = numerators/denominators[:,np.newaxis] ## n_pred_x x n_chunk
             results.append(vals)
         vals = np.concatenate(results, axis=-1)
         return(vals)
     
-    def bootstrap(self, X_pred:np.ndarray, y_pred:np.ndarray, n:int=100, progress_bar:bool=True):
+    def bootstrap(self, X_pred:np.ndarray, y_pred:np.ndarray, n:int=100, verbose:bool=False):
         ## Copy out the data
         X_train = self.X.copy()
         y_train = self.y.copy()
         
         results = []
         n_train = X_train.shape[0]
-        for _ in trange(n, disable=(not progress_bar)):
+        for _ in trange(n, disable=(not verbose)):
             bootstrap_idx = np.random.choice(n_train, size=n_train, replace=True) 
             self.fit(X=X_train[bootstrap_idx], 
                      y=y_train[bootstrap_idx], 
                      hx=self.hx, 
                      hy=self.hy, 
                      n_neighbors=self.n_neighbors)
-            results.append(self.predict_density(X_pred, y_pred, progress_bar=False))
+            results.append(self.predict_density(X_pred, y_pred, verbose=False))
         
         ## Reset the data
         self.fit(X=X_train, 

@@ -3,10 +3,9 @@
 '''Predictive recursion-based routines for estimating marginal distributions of
 z-scores as an infinite mixture of gaussians.'''
 import numpy as np
-from scipy.stats import norm, multivariate_normal as mvn
+from scipy.stats import norm
 from scipy.interpolate import RegularGridInterpolator
-from scipy.integrate import cumtrapz
-
+from scipy.integrate import trapezoid, cumulative_trapezoid
 
 class GridDistribution1D:
     def __init__(self, bins, w, discrete=False):
@@ -18,16 +17,10 @@ class GridDistribution1D:
             self.grid = self.discrete_grid
             self.cdf_grid = self.discrete_cdf_grid
         else:
-            self.w = w / np.trapz(w, bins)
-            self.w_cum = cumtrapz(self.w, self.bins, initial=0)
+            self.w = w / trapezoid(w, bins)
+            self.w_cum = cumulative_trapezoid(self.w, self.bins, initial=0)
             self.grid = RegularGridInterpolator((bins,), self.w, bounds_error=False, fill_value=0)
             self.cdf_grid = RegularGridInterpolator((bins,), self.w_cum, bounds_error=False, fill_value=0)
-        
-        # a = np.concatenate([[0], np.cumsum(((self.bins[1:] - self.bins[:-1]) * (self.w[1:] + self.w[:-1])) / 2).clip(1e-8,1-1e-8)])
-        # too_small = np.abs(a[1:-1] - a[:-2]) <= 1e-3
-        # a = np.concatenate([[0], a[1:-1][~too_small], [1]])
-        # b = np.concatenate([[self.bins[0]],self.bins[1:-1][~too_small], [self.bins[-1]]])
-        # self.ppf_grid = RegularGridInterpolator((a,), b, bounds_error=True)
 
         # Quick and dirty expectation (TODO: better estimate this)
         self.expectation = (self.grid(self.bins) * self.bins).sum() / self.grid(self.bins).sum()
@@ -59,10 +52,14 @@ class GridDistribution1D:
         x, bins = self.bins_expand(x)
         return self.w_cum[np.argmax(bins==x, axis=-1)]
 
-    # def ppf(self, a):
-    #     if np.isscalar(a):
-    #         return self.ppf_grid(np.array([a]))[0]
-    #     return self.ppf_grid(a)
+    def mean(self):
+        mean = trapezoid(y=self.grid(self.bins)*self.bins, x=self.bins)
+        return(mean)
+    
+    def variance(self):
+        sq = trapezoid(y=self.grid(self.bins)*np.square(self.bins), x=self.bins)
+        var = sq-np.square(self.mean())
+        return(var)
 
 def generate_sweeps(num_sweeps, num_samples):
     '''Creates random sweeps over the data.'''
@@ -161,7 +158,7 @@ def estimate_density(y, bins=200, weights=None, tilts=None, nsweeps=10, sweepord
             #step_weight = (3. + i)**decay # Each iteration contributes slightly less
             step_weight = (3. + cum_weights)**decay
             f = w_sweep * tilts[k] * likelihoods[k] # prob of z_k coming from N(bins, 1) * current prior
-            m = max(1e-10, np.trapz(f, bins))
+            m = max(1e-10, trapezoid(f, bins))
             if i < len(y):
                 log_marginal += np.log(max(1e-10, m))
             w_sweep = (1. - step_weight * weights[k]) * w_sweep + step_weight * weights[k] * f/m # reweight
@@ -178,11 +175,34 @@ def estimate_density(y, bins=200, weights=None, tilts=None, nsweeps=10, sweepord
         z /= z.sum()
     else:
         # Continuous distribution over the support
-        z /= np.trapz(z, support_bins)
+        z /= trapezoid(z, support_bins)
 
-    return {'bins': bins, 'support_bins': support_bins, 'dist': GridDistribution1D(support_bins, z, discrete=discrete),
+    return {'bins': bins, 
+            'support_bins': support_bins, 
+            'dist': GridDistribution1D(support_bins, z, discrete=discrete),
             'w': w, 'z': z, 'logm': log_marginal, 'sweeporder': sweeporder}
 
+
+
+def estimate_density_dynamic(y, nbins, max_nbins):
+    import warnings
+    finished = False
+    dist:GridDistribution1D = None
+    
+    while (not finished) and (nbins < max_nbins):
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter('error')
+                # Estimate the null distribution using predictive recursion
+                dist = estimate_density(y, bins=nbins)['dist']
+                finished = True
+        except:
+            warnings.warn('Insufficient bins for residuals. Doubling from {} to {}'.format(nbins, 2*nbins))
+            nbins = 2 * nbins
+            
+    if dist is None:
+        dist = estimate_density(y, bins=max_nbins)['dist']
+    return(dist)
 
 class GmmDummy:
     def __init__(self, pi, mu, sigma):

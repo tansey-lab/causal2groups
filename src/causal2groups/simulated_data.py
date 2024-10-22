@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from causal2groups.utils import ilogit
+from scipy.special import expit as ilogit
 
 def pca(X, pc=50):
     from sklearn.decomposition import PCA
@@ -59,7 +59,7 @@ class AdditiveSimulatedData:
         X = self.rng.normal(0, 1/np.sqrt(self.P), size=(N,self.P))
 
         mu_0 = X.dot(self.beta)
-        mu_1 = X.dot(self.gamma) + self.rng.normal(self.tau, size=X.shape[0]) # treatment effect
+        mu_1 = mu_0 + self.tau*(np.abs(X).dot(np.abs(self.gamma))) # treatment effect
         H_prob = ilogit(X.dot(self.theta))
 
         H = T & (self.rng.random(size=H_prob.shape) <= H_prob)
@@ -70,7 +70,18 @@ class AdditiveSimulatedData:
         Y = np.where(H==1, Y_effect, Y_null)
         return(X, Y, T, H, H_prob)
     
-    
+    def prior_prob(self, X:np.ndarray):
+        H_prob = ilogit(X.dot(self.theta))
+        return(H_prob)
+
+    def null_mean(self, X:np.ndarray):
+        mu_0 = X.dot(self.beta)
+        return(mu_0)
+
+    def alt_mean(self, X:np.ndarray):
+        mu_0 = self.null_mean(X)
+        mu_1 = mu_0 + self.tau*(np.abs(X).dot(np.abs(self.gamma)))
+        return(mu_1)
 
 class GDSCSemiSynthetic:
     def __init__(self, 
