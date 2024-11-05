@@ -48,7 +48,6 @@ class KernelFrequentist:
         H_treated = H[T==1]
         qvals = false_discovery_control(p_vals_treated)
         n_pos = np.sum(H_treated)
-        n_pos = np.sum(H_treated)
 
         fdr_observed = np.zeros_like(fdr_levels)
         power_observed = np.zeros_like(fdr_levels)

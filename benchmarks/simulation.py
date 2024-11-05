@@ -8,6 +8,7 @@ from causal2groups.additive import AdditiveCausal2G
 from itertools import product
 import subprocess
 import argparse
+from scipy.stats import false_discovery_control
 
 def run_simulation(dir_name, N, tau, seed):
     ## Set seed
@@ -81,7 +82,7 @@ def run_simulation(dir_name, N, tau, seed):
         fdr_df = pd.DataFrame({"Nominal FDR":fdr_levels, "Observed FDR":obs_fdr, "Observed power":obs_pow, "N":N, "tau":tau, "seed":seed})
         fdr_df.to_csv(os.path.join(dir_name, "frequentist.csv"))
 
-        raw_df = pd.DataFrame({"H":H[T==1], "q_value":kernel_freq.null_density_upper[T==1]})
+        raw_df = pd.DataFrame({"H":H[T==1], "q_value":false_discovery_control(kernel_freq.null_density_upper[T==1])})
         raw_df.to_csv(os.path.join(dir_name, "frequentist_raw.csv"))
 
 
