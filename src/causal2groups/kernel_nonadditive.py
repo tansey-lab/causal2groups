@@ -38,7 +38,7 @@ class KernelNonadditiveCausal2G:
                                        verbose=self.verbose)
 
         if self.verbose:
-            print('Drawing bootstrap samples from treatment model.')
+            print('Drawing bootstrap samples from null model.')
 
         self.grid = np.linspace(np.min(Y), np.max(Y), num=self.n_grid)
         null_grid_boot = self.null_model.bootstrap(X, self.grid)
@@ -154,8 +154,12 @@ class KernelNonadditiveCausal2G:
             for i, alpha in enumerate(fdr_levels):
                 ## Locate largest fdr level where estimate does not exceed desired alpha.
                 fdr_estimate_idx = np.where(fdr_estimate <= alpha)[0]
-                j = np.max(fdr_estimate_idx[fdr_estimate_idx<=i])
-                alpha_j = fdr_levels[j]
+                valid_idx = fdr_estimate_idx[fdr_estimate_idx<=i]
+                if len(valid_idx)>0:
+                    j = np.max(valid_idx)
+                    alpha_j = fdr_levels[j]
+                else:
+                    alpha_j = -0.1 ## No valid selections can be made
 
                 ## Select points below this value
                 mask = treated_running_average<=alpha_j
