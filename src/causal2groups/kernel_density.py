@@ -163,3 +163,23 @@ class ConditionalKDE:
 
         vals = numerators/denominators ## n_pred_x
         return(vals)
+    
+    def predict_mean(self, X_pred, exclude_zero_dists:bool=True):
+        _, dim = X_pred.shape
+        tree = KDTree(self.X)
+        D_x, inds = tree.query(X_pred, k=self.n_neighbors, sort_results=False)
+        mask = D_x!=0 if exclude_zero_dists else np.ones_like(D_x, dtype=bool)
+        y_train_neighbors = self.y[inds] ## n_pred_x x n_neighbors
+
+        sq_x_dists = np.square(D_x)
+        hx_sq = np.square(self.hx)
+        k_x = np.power(1.0/(2*np.pi*hx_sq), 0.5*dim)*np.exp(-sq_x_dists/(2*hx_sq)) ## n_pred_x x n_neighbors
+        k_x = k_x * mask ## Mask out restricted points
+        denominators = np.mean(k_x, axis=-1) ## n_pred_x
+        denominators = np.abs(denominators)
+
+        means = y_train_neighbors ## n_pred_x x n_neighbors
+        numerators = np.mean(k_x*means, axis=1) ## n_pred_x
+
+        vals = numerators/denominators ## n_pred_x
+        return(vals)
