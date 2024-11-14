@@ -163,6 +163,11 @@ class AdditiveCausal2G:
         self.null_posterior = (1-self.prior_probs)*null_likelihood/(self.prior_probs*alt_likelihood + (1-self.prior_probs)*null_likelihood)
         self.null_posterior = np.clip(self.null_posterior, a_min=0.0, a_max=1.0)
 
+    def predict_ite(self):
+        ite_hat = self.y_altpreds - self.y_nullpreds
+        return(ite_hat)
+    
+    
     def calculate_fdr(self, T:np.ndarray, H:np.ndarray, fdr_levels:np.ndarray, empirical_control:bool=False):
         T = T.astype(np.bool_)
         null_posterior = self.null_posterior.copy()

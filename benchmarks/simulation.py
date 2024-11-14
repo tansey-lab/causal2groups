@@ -46,6 +46,10 @@ def run_simulation(dir_name, N, tau, seed):
         fdr_df = pd.DataFrame({"Nominal FDR":fdr_levels, "Observed FDR":obs_fdr, "Observed power":obs_pow, "N":N, "tau":tau, "seed":seed})
         fdr_df.to_csv(os.path.join(dir_name, "nonadditive_causal2groups_ec.csv"))
 
+        ## Compute ITE
+        ite_df = pd.DataFrame({"ITE":kernel_causal2groups.predict_ite()})
+        ite_df.to_csv(os.path.join(dir_name, "nonadditive_causal2groups_ite.csv"))
+
     if not os.path.isfile(os.path.join(dir_name, "additive_causal2groups_full.csv")):
         ## Fit additive causal2groups
         add_causal2groups = AdditiveCausal2G(n_covariates=P, 
@@ -71,6 +75,10 @@ def run_simulation(dir_name, N, tau, seed):
         obs_fdr, obs_pow = add_causal2groups.calculate_fdr(T=T, H=H, fdr_levels=fdr_levels, empirical_control=True)
         fdr_df = pd.DataFrame({"Nominal FDR":fdr_levels, "Observed FDR":obs_fdr, "Observed power":obs_pow, "N":N, "tau":tau, "seed":seed})
         fdr_df.to_csv(os.path.join(dir_name, "additive_causal2groups_ec.csv"))
+
+        ## Compute ITE
+        ite_df = pd.DataFrame({"ITE":add_causal2groups.predict_ite()})
+        ite_df.to_csv(os.path.join(dir_name, "additive_causal2groups_ite.csv"))
 
     if not os.path.isfile(os.path.join(dir_name, "frequentist_raw.csv")):
         ## Fit frequentist model

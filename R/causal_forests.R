@@ -23,6 +23,9 @@ tau.forest = causal_forest(X, Y, T_, num.trees = 4000, tune.parameters="all")
 tau.hat = predict(tau.forest, estimate.variance = TRUE)
 sigma.hat = sqrt(tau.hat$variance.estimates)
 
+tau.df = data.frame("ITE"=tau.hat$predictions)
+write.csv(tau.df, paste(data_dir, "causal_forest_ite.csv", sep="/"))
+
 ## Calculate p.values
 p.vals = pnorm(0, mean=tau.hat$predictions, sd=sigma.hat)
 

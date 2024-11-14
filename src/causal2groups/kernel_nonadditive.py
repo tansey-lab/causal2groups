@@ -24,9 +24,10 @@ class KernelNonadditiveCausal2G:
         self.n_grid = n_grid
         self.verbose = verbose
 
-    def fit(self, X, Y, T):
+    def fit(self, X:np.ndarray, Y:np.ndarray, T:np.ndarray):
         '''Fits a nonadditive causal two-groups model and performs selection on
         the treated population with control of the FDR at the target level.'''
+        self.X = X.copy()
 
         if self.verbose:
             print('Fitting null model.')
@@ -117,6 +118,14 @@ class KernelNonadditiveCausal2G:
         null_posterior = (1.-pi_star)*null_density_upper/treat_density_lower
         null_posterior = np.clip(null_posterior, 0.0, 1.0)
         return(null_posterior)
+
+    def predict_ite(self):
+        null_preds = self.null_model.predict_mean(self.X)
+        treat_preds = self.treatment_model.predict_mean(self.X)
+
+        alt_preds = (1./self.pi_star)*(treat_preds - (1 - self.pi_star)*null_preds)
+        ite_hat = alt_preds - null_preds
+        return(ite_hat)
 
     def calculate_fdr(self, T:np.ndarray, H:np.ndarray, fdr_levels:np.ndarray, empirical_control:bool=False):
         null_posterior = self.null_posterior.copy()
