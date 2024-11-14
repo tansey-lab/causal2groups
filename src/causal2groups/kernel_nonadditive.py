@@ -122,8 +122,8 @@ class KernelNonadditiveCausal2G:
     def predict_ite(self):
         null_preds = self.null_model.predict_mean(self.X)
         treat_preds = self.treatment_model.predict_mean(self.X)
-
-        alt_preds = (1./self.pi_star)*(treat_preds - (1 - self.pi_star)*null_preds)
+        pi_star = np.clip(self.pi_star, a_min=0.0001, a_max=0.9999)
+        alt_preds = (1./pi_star)*(treat_preds - (1 - pi_star)*null_preds)
         ite_hat = alt_preds - null_preds
         return(ite_hat)
 
