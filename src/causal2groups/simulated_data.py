@@ -29,7 +29,8 @@ class NonadditiveSimulatedData:
         H = T & self.rng.binomial(1, H_prob, size=N)
         interactions = self.B * X[:,None] * X[:,:,None]
         interactions = (self.Z * interactions).sum(axis=-1).sum(axis=-1)
-        offset = self.c * ilogit(W) + self.tau * H * ( 1. + np.abs(interactions))
+        U = self.rng.uniform(low=0.0, high=2.0, size=N)
+        offset = self.c * ilogit(W) + self.tau * H * ( 1. + np.abs(interactions)) * U
         Y = self.rng.normal(np.square(offset), self.v, size=N)
         return(X, Y, T, H, H_prob)
     
@@ -41,7 +42,8 @@ class NonadditiveSimulatedData:
         H = T & self.rng.binomial(1, H_prob, size=n)
         interactions = self.B * X_[:,None] * X_[:,:,None]
         interactions = (self.Z * interactions).sum(axis=-1).sum(axis=-1)
-        offset = self.c * ilogit(W) + self.tau * H * ( 1. + np.abs(interactions))
+        U = self.rng.uniform(low=0.0, high=2.0, size=n)
+        offset = self.c * ilogit(W) + self.tau * H * ( 1. + np.abs(interactions)) * U
         Y = self.rng.normal(np.square(offset), self.v, size=n)
         return(Y, T, H, H_prob)
     
