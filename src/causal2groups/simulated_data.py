@@ -10,7 +10,7 @@ class NonadditiveSimulatedData:
     def __init__(self, P:int, tau:float, seed:int, sigma:float=1, v:float=1):
         self.rng = np.random.default_rng(seed)
         self.P = P
-        self.tau = tau
+        self.tau = np.sqrt(1 + tau)/2
         self.sigma = sigma
         self.v = v
 
@@ -30,7 +30,7 @@ class NonadditiveSimulatedData:
         interactions = self.B * X[:,None] * X[:,:,None]
         interactions = (self.Z * interactions).sum(axis=-1).sum(axis=-1)
         offset = self.c * ilogit(W) + self.tau * H * ( 1. + np.abs(interactions))
-        Y = self.rng.normal(np.log1p(offset), self.v, size=N)
+        Y = self.rng.normal(np.square(offset), self.v, size=N)
         return(X, Y, T, H, H_prob)
     
     def generate_conditional_data(self, x:np.ndarray, n:int):
@@ -42,7 +42,7 @@ class NonadditiveSimulatedData:
         interactions = self.B * X_[:,None] * X_[:,:,None]
         interactions = (self.Z * interactions).sum(axis=-1).sum(axis=-1)
         offset = self.c * ilogit(W) + self.tau * H * ( 1. + np.abs(interactions))
-        Y = self.rng.normal(np.log1p(offset), self.v, size=n)
+        Y = self.rng.normal(np.square(offset), self.v, size=n)
         return(Y, T, H, H_prob)
     
     def null_mean(self, X:np.ndarray):
@@ -50,14 +50,14 @@ class NonadditiveSimulatedData:
         interactions = self.B * X[:,None] * X[:,:,None]
         interactions = (self.Z * interactions).sum(axis=-1).sum(axis=-1)
         offset = self.c * ilogit(W)
-        return(np.log1p(offset))
+        return(np.square(offset))
 
     def alt_mean(self, X:np.ndarray):
         W = X.dot(self.gamma)    # treatment propensity
         interactions = self.B * X[:,None] * X[:,:,None]
         interactions = (self.Z * interactions).sum(axis=-1).sum(axis=-1)
         offset = self.c * ilogit(W) + self.tau * ( 1. + np.abs(interactions))
-        return(np.log1p(offset))
+        return(np.square(offset))
     
     def ite(self, X:np.ndarray):
         mu_0 = self.null_mean(X)

@@ -256,46 +256,83 @@ def load_fdr(folder):
 
 class ResultsInterpreter:
     def __init__(self, result_folder:str, keep_no_ec:bool=False):
-        roc_dfs = []
-        auc_dfs = []
-        fdr_dfs = []
-        for setting in ['additive', 'nonadditive', 'nutlin']:
-            folder = os.path.join(result_folder, setting)
-            roc_df, auc_df = load_roc(folder)
-            fdr_df = load_fdr(folder)
-            roc_df['Setting'] = setting
-            auc_df['Setting'] = setting
-            fdr_df['Setting'] = setting
-            roc_dfs.append(roc_df)
-            auc_dfs.append(auc_df)
-            fdr_dfs.append(fdr_df)
-        
-        self.roc_df = pd.concat(roc_dfs, ignore_index=True)
-        self.auc_df = pd.concat(auc_dfs, ignore_index=True)
-        self.fdr_df = pd.concat(fdr_dfs, ignore_index=True)
+        self.result_folder = result_folder
+        self.keep_no_ec = keep_no_ec
 
-        if not keep_no_ec:
-            self.fdr_df = self.fdr_df[~self.fdr_df['method'].isin(['Add-C2G', "NP-C2G"])].reset_index(drop=True)
-            self.fdr_df.replace('Add-C2G-EC', 'Add-C2G', inplace=True)
-            self.fdr_df.replace('NP-C2G-EC', 'NP-C2G', inplace=True)
+        self.roc_df = None
+        self.auc_df = None
+        self.fdr_df = None
+        self.ite_df = None
 
     def get_df(self, metric):
         if metric=="roc":
-            return self.roc_df
+            if self.roc_df is None:
+                self.load_roc()
+            return self.roc_df.copy()
         elif metric in ["fdr", "power"]:
-            return self.fdr_df
+            if self.fdr_df is None:
+                self.load_fdr()
+            return self.fdr_df.copy()
+        elif metric in ['ate', 'corr']:
+            if self.ite_df is None:
+                self.load_ite()
+            return self.ite_df.copy()
         else:
-            return self.auc_df
+            if self.auc_df is None:
+                self.load_roc()
+            return self.auc_df.copy()
+    
+    def load_fdr(self):
+        fdr_dfs = []
+        for setting in ['additive', 'nonadditive', 'nutlin']:
+            folder = os.path.join(self.result_folder, setting)
+            fdr_df = load_fdr(folder)
+            fdr_df['Setting'] = setting
+            fdr_dfs.append(fdr_df)
+
+        self.fdr_df = pd.concat(fdr_dfs, ignore_index=True)
+
+        if not self.keep_no_ec:
+            self.fdr_df = self.fdr_df[~self.fdr_df['method'].isin(['Add-C2G', "NP-C2G"])].reset_index(drop=True)
+            self.fdr_df.replace('Add-C2G-EC', 'Add-C2G', inplace=True)
+            self.fdr_df.replace('NP-C2G-EC', 'NP-C2G', inplace=True)
+    
+    def load_roc(self):
+        roc_dfs = []
+        auc_dfs = []
+        for setting in ['additive', 'nonadditive', 'nutlin']:
+            folder = os.path.join(self.result_folder, setting)
+            roc_df, auc_df = load_roc(folder)
+            roc_df['Setting'] = setting
+            auc_df['Setting'] = setting
+            roc_dfs.append(roc_df)
+            auc_dfs.append(auc_df)
         
+        self.roc_df = pd.concat(roc_dfs, ignore_index=True)
+        self.auc_df = pd.concat(auc_dfs, ignore_index=True)
+
+
+    def load_ite(self):
+        ite_dfs = []
+        for setting in ['additive', 'nonadditive', 'nutlin']:
+            folder = os.path.join(self.result_folder, setting)
+            ite_df = load_ite(folder)
+            ite_df['Setting'] = setting
+            ite_dfs.append(ite_df)
+        
+        self.ite_df = pd.concat(ite_dfs, ignore_index=True)
+
     def fdr_lookup(self, val):
-        sub_df = self.fdr_df.loc[( self.fdr_df['Nominal FDR']==val), ['N', 'tau', 'method', 'Setting', 'Observed FDR_mean', 'Observed FDR_CI']].copy()
+        fdr_df = self.get_df('fdr')
+        sub_df = fdr_df.loc[( fdr_df['Nominal FDR']==val), ['N', 'tau', 'method', 'Setting', 'Observed FDR_mean', 'Observed FDR_CI']].copy()
         sub_df['Observed FDR_mean'] = sub_df['Observed FDR_mean']
         sub_df['Observed FDR_CI'] = sub_df['Observed FDR_CI']
         sub_df['Observed FDR_bold'] = (sub_df['Observed FDR_mean'] - sub_df['Observed FDR_CI']) <= val
         return(sub_df.set_index(['N', 'tau', 'method', 'Setting']).to_dict())
 
     def power_lookup(self, val):
-        sub_df = self.fdr_df.loc[(self.fdr_df['Nominal FDR']==val), ['N', 'tau', 'method', 'Setting', 'Valid power_mean', 'Valid power_CI']].copy()
+        fdr_df = self.get_df('fdr')
+        sub_df = fdr_df.loc[(fdr_df['Nominal FDR']==val), ['N', 'tau', 'method', 'Setting', 'Valid power_mean', 'Valid power_CI']].copy()
         sub_df['Valid power_mean'] = sub_df['Valid power_mean']
         sub_df['Valid power_CI'] = sub_df['Valid power_CI']
         sub_df['Valid power_low'] = sub_df['Valid power_mean'] - sub_df['Valid power_CI']
@@ -305,7 +342,7 @@ class ResultsInterpreter:
         return(sub_df.set_index(['N', 'tau', 'method', 'Setting']).to_dict())
     
     def auc_lookup(self):
-        sub_df = self.auc_df.copy()
+        sub_df = self.get_df('auc')
         sub_df['AUC_mean'] = sub_df['AUC_mean']
         sub_df['AUC_CI'] = sub_df['AUC_CI']
         sub_df['AUC_low'] = sub_df['AUC_mean'] - sub_df['AUC_CI']
