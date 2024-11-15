@@ -29,7 +29,8 @@ class NonadditiveSimulatedData:
         H = T & self.rng.binomial(1, H_prob, size=N)
         interactions = self.B * X[:,None] * X[:,:,None]
         interactions = (self.Z * interactions).sum(axis=-1).sum(axis=-1)
-        Y = self.rng.normal(np.log1p(np.exp(self.c * W + X.dot(self.theta) + self.tau * H + interactions)), self.v, size=N)
+        offset = self.c * W + X.dot(self.theta) + self.tau * H * ( 1. + np.abs(interactions))
+        Y = self.rng.normal(np.log1p(offset), self.v, size=N)
         return(X, Y, T, H, H_prob)
     
     def generate_conditional_data(self, x:np.ndarray, n:int):
@@ -40,20 +41,23 @@ class NonadditiveSimulatedData:
         H = T & self.rng.binomial(1, H_prob, size=n)
         interactions = self.B * X_[:,None] * X_[:,:,None]
         interactions = (self.Z * interactions).sum(axis=-1).sum(axis=-1)
-        Y = self.rng.normal(np.log1p(np.exp(self.c * W + X_.dot(self.theta) + self.tau * H + interactions)), self.v, size=n)
+        offset = self.c * W + X_.dot(self.theta) + self.tau * H * ( 1. + np.abs(interactions))
+        Y = self.rng.normal(np.log1p(offset), self.v, size=n)
         return(Y, T, H, H_prob)    
     
     def null_mean(self, X:np.ndarray):
         W = X.dot(self.gamma)    # treatment propensity
         interactions = self.B * X[:,None] * X[:,:,None]
         interactions = (self.Z * interactions).sum(axis=-1).sum(axis=-1)
-        return(np.log1p(np.exp(self.c * W + X.dot(self.theta) + interactions)))
+        offset = self.c * W + X.dot(self.theta)
+        return(np.log1p(offset))
 
     def alt_mean(self, X:np.ndarray):
         W = X.dot(self.gamma)    # treatment propensity
         interactions = self.B * X[:,None] * X[:,:,None]
         interactions = (self.Z * interactions).sum(axis=-1).sum(axis=-1)
-        return(np.log1p(np.exp(self.c * W + X.dot(self.theta) + interactions + self.tau)))
+        offset = self.c * W + X.dot(self.theta) + self.tau * ( 1. + np.abs(interactions))
+        return(np.log1p(offset))
     
     def ite(self, X:np.ndarray):
         mu_0 = self.null_mean(X)

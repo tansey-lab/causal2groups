@@ -180,6 +180,10 @@ def load_roc(folder):
     res_df = res_df.merge(nobs, on=["N", "tau", "method"])
     res_df.rename(columns={0:"count"}, inplace=True)
     res_df['AUC_CI'] = 1.96*res_df['AUC_stdv']/np.sqrt(res_df['count'])
+
+    res_df['AUC_mean'] = res_df['AUC_mean'].round(2)
+    res_df['AUC_CI'] = res_df['AUC_CI'].round(2)
+
     auc_df = res_df
 
     return(roc_df, auc_df)
@@ -223,12 +227,16 @@ def load_fdr(folder):
     res_df['Observed FDR_STDERR'] = res_df['Observed FDR_stdv']/np.sqrt(res_df['count'])
     res_df['Observed power_CI'] = 1.96*res_df['Observed power_stdv']/np.sqrt(res_df['count'])
 
+    res_df['Observed FDR_mean'] = res_df['Observed FDR_mean'].round(3)
+    res_df['Observed FDR_CI'] = res_df['Observed FDR_CI'].round(3)
+
     ## Calculate valid power
     m_df = df.merge(res_df, on=["N", "tau", "method", "Nominal FDR"])
-    m_df['Valid'] = (m_df['Observed FDR_mean']-m_df['Observed FDR_STDERR'])<=m_df['Nominal FDR']
+    m_df['Valid'] = (m_df['Observed FDR_mean']-m_df['Observed FDR_CI'])<=m_df['Nominal FDR']
     m_df = m_df[["N", "tau", "method", "seed", "Nominal FDR", "Observed power", "Valid"]]
     m_df['Intermediate power'] = np.where(m_df['Valid'], m_df['Observed power'], 0)
-    m_df['Valid power'] = m_df.groupby(["N", "tau", "method", "seed"])['Intermediate power'].cummax()
+    m_df['Valid power'] = m_df['Intermediate power']
+    # m_df['Valid power'] = m_df.groupby(["N", "tau", "method", "seed"])['Intermediate power'].cummax()
     mean_df = m_df.drop(columns="seed").groupby(["N", "tau", "method", "Nominal FDR"]).mean().reset_index()
     std_df = m_df.drop(columns="seed").groupby(["N", "tau", "method", "Nominal FDR"]).std().reset_index()
     nobs = m_df.drop(columns="seed").groupby(["N", "tau", "method", "Nominal FDR"]).size().reset_index()
@@ -238,6 +246,10 @@ def load_fdr(folder):
     mres_df.rename(columns={0:"count"}, inplace=True)
     mres_df['Valid power_CI'] = 1.96*mres_df['Valid power_stdv']/np.sqrt(mres_df['count'])
     mres_df = mres_df[["N", "tau", "method", "Nominal FDR", 'Valid power_mean', 'Valid power_CI']]
+
+    mres_df["Valid power_mean"] = mres_df["Valid power_mean"].round(3)
+    mres_df["Valid power_CI"] = mres_df["Valid power_CI"].round(3)
+
     fdf = res_df.merge(mres_df, on=["N", "tau", "method", "Nominal FDR"])
     return(fdf)
 
@@ -277,15 +289,15 @@ class ResultsInterpreter:
         
     def fdr_lookup(self, val):
         sub_df = self.fdr_df.loc[( self.fdr_df['Nominal FDR']==val), ['N', 'tau', 'method', 'Setting', 'Observed FDR_mean', 'Observed FDR_CI']].copy()
-        sub_df['Observed FDR_mean'] = sub_df['Observed FDR_mean'].round(2)
-        sub_df['Observed FDR_CI'] = sub_df['Observed FDR_CI'].round(3)
+        sub_df['Observed FDR_mean'] = sub_df['Observed FDR_mean']
+        sub_df['Observed FDR_CI'] = sub_df['Observed FDR_CI']
         sub_df['Observed FDR_bold'] = (sub_df['Observed FDR_mean'] - sub_df['Observed FDR_CI']) <= val
         return(sub_df.set_index(['N', 'tau', 'method', 'Setting']).to_dict())
 
     def power_lookup(self, val):
         sub_df = self.fdr_df.loc[(self.fdr_df['Nominal FDR']==val), ['N', 'tau', 'method', 'Setting', 'Valid power_mean', 'Valid power_CI']].copy()
-        sub_df['Valid power_mean'] = sub_df['Valid power_mean'].round(2)
-        sub_df['Valid power_CI'] = sub_df['Valid power_CI'].round(3)
+        sub_df['Valid power_mean'] = sub_df['Valid power_mean']
+        sub_df['Valid power_CI'] = sub_df['Valid power_CI']
         sub_df['Valid power_low'] = sub_df['Valid power_mean'] - sub_df['Valid power_CI']
         sub_df['Valid power_high'] = sub_df['Valid power_mean'] + sub_df['Valid power_CI']
         sub_df = sub_df.merge(sub_df.groupby(["N", "tau", "Setting"])['Valid power_low'].max().reset_index().rename(columns={"Valid power_low":"thresh"}))
@@ -294,8 +306,8 @@ class ResultsInterpreter:
     
     def auc_lookup(self):
         sub_df = self.auc_df.copy()
-        sub_df['AUC_mean'] = sub_df['AUC_mean'].round(2)
-        sub_df['AUC_CI'] = sub_df['AUC_CI'].round(3)
+        sub_df['AUC_mean'] = sub_df['AUC_mean']
+        sub_df['AUC_CI'] = sub_df['AUC_CI']
         sub_df['AUC_low'] = sub_df['AUC_mean'] - sub_df['AUC_CI']
         sub_df['AUC_high'] = sub_df['AUC_mean'] + sub_df['AUC_CI']
         sub_df = sub_df.merge(sub_df.groupby(["N", "tau", "Setting"])['AUC_low'].max().reset_index().rename(columns={"AUC_low":"thresh"}))
