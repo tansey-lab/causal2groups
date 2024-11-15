@@ -18,6 +18,8 @@ class NonadditiveSimulatedData:
         self.gamma = self.rng.normal(0, sigma/np.sqrt(P), size=P)
         self.theta = self.rng.normal(0, sigma/np.sqrt(P), size=P)
         self.c = abs(self.rng.normal(0, 2)) # half gaussian to ensure positive correlation between T and Y
+        self.B = self.rng.random(size=(1,P, P)) <= 0.1
+        self.Z = self.rng.standard_t(3, size=(1,P,P))
 
     def generate_data(self, N:int):
         X = self.rng.normal(0, 1/np.sqrt(self.P), size=(N,self.P))
@@ -25,8 +27,8 @@ class NonadditiveSimulatedData:
         T = self.rng.binomial(1, ilogit(W), size=N)
         H_prob = ilogit(X.dot(self.beta))    # effective/response propensity
         H = T & self.rng.binomial(1, H_prob, size=N)
-        interactions = (self.rng.random(size=(1,X.shape[1], X.shape[1])) <= 0.1) * X[:,None] * X[:,:,None]
-        interactions = (self.rng.standard_t(3, size=(1,X.shape[1],X.shape[1])) * interactions).sum(axis=-1).sum(axis=-1)
+        interactions = self.B * X[:,None] * X[:,:,None]
+        interactions = (self.Z * interactions).sum(axis=-1).sum(axis=-1)
         Y = self.rng.normal(np.log1p(np.exp(self.c * W + X.dot(self.theta) + self.tau * H + interactions)), self.v, size=N)
         return(X, Y, T, H, H_prob)
     
@@ -36,11 +38,27 @@ class NonadditiveSimulatedData:
         T = self.rng.binomial(1, ilogit(W), size=n)
         H_prob = ilogit(X_.dot(self.beta))    # effective/response propensity
         H = T & self.rng.binomial(1, H_prob, size=n)
-        interactions = (self.rng.random(size=(1,X_.shape[1], X_.shape[1])) <= 0.1) * X_[:,None] * X_[:,:,None]
-        interactions = (self.rng.standard_t(3, size=(1,X_.shape[1],X_.shape[1])) * interactions).sum(axis=-1).sum(axis=-1)
+        interactions = self.B * X_[:,None] * X_[:,:,None]
+        interactions = (self.Z * interactions).sum(axis=-1).sum(axis=-1)
         Y = self.rng.normal(np.log1p(np.exp(self.c * W + X_.dot(self.theta) + self.tau * H + interactions)), self.v, size=n)
-        return(Y, T, H, H_prob)
+        return(Y, T, H, H_prob)    
     
+    def null_mean(self, X:np.ndarray):
+        W = X.dot(self.gamma)    # treatment propensity
+        interactions = self.B * X[:,None] * X[:,:,None]
+        interactions = (self.Z * interactions).sum(axis=-1).sum(axis=-1)
+        return(np.log1p(np.exp(self.c * W + X.dot(self.theta) + interactions)))
+
+    def alt_mean(self, X:np.ndarray):
+        W = X.dot(self.gamma)    # treatment propensity
+        interactions = self.B * X[:,None] * X[:,:,None]
+        interactions = (self.Z * interactions).sum(axis=-1).sum(axis=-1)
+        return(np.log1p(np.exp(self.c * W + X.dot(self.theta) + interactions + self.tau)))
+    
+    def ite(self, X:np.ndarray):
+        mu_0 = self.null_mean(X)
+        mu_1 = self.alt_mean(X)
+        return(mu_1 - mu_0)
 
 class AdditiveSimulatedData:
     def __init__(self, P:int, tau:float, seed:int, sigma:float=1, v:float=1):
@@ -82,6 +100,11 @@ class AdditiveSimulatedData:
         mu_0 = self.null_mean(X)
         mu_1 = mu_0 + self.tau*(np.abs(X).dot(np.abs(self.gamma)))
         return(mu_1)
+    
+    def ite(self, X:np.ndarray):
+        mu_0 = self.null_mean(X)
+        mu_1 = self.alt_mean(X)
+        return(mu_1 - mu_0)
 
 class GDSCSemiSynthetic:
     def __init__(self, 
@@ -149,10 +172,9 @@ class GDSCSemiSynthetic:
 
 
     def generate_data(self, pca:bool):
-        gamma = 1
-        T_bias = self.rng.binomial(1, ilogit(self.W * gamma), size=self.Y.shape[0])
-        T_bias[self.H == 1] = self.T[self.H == 1]  # keep effective the same, only mix more noneffective into treated
-        Y_tilde = self.Y - gamma * self.W
+        T_bias = self.rng.binomial(1, ilogit(self.W), size=self.Y.shape[0])
+        T_bias[self.H == 1] = 1  # keep effective the same, only mix more noneffective into treated
+        Y_tilde = self.Y #- gamma * self.W
         
         X = self.X_pca if pca else self.X
         Y = Y_tilde

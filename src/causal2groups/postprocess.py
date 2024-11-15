@@ -3,6 +3,7 @@ import pandas as pd
 import os
 from sklearn.metrics import roc_curve
 from scipy.integrate import simpson
+from causal2groups.simulated_data import AdditiveSimulatedData, NonadditiveSimulatedData, GDSCSemiSynthetic
 
 all_methods = ["additive_causal2groups", 
                "causal_forest", 
@@ -51,6 +52,81 @@ def load_raw(folder):
     raw_df.fillna(0, inplace=True)
     raw_df.replace(abbrev2full, inplace=True)
     return(raw_df)
+
+
+def load_ite(folder):
+    folder_names = [x for x in os.listdir(folder) if x.startswith('N_') or x.startswith('pca_')]
+    ite_dfs = []
+    for folder_name in folder_names:
+        if folder_name.startswith('N_'):
+            _,N,tau,_,seed = folder_name.split('_')
+            tau = float(tau[3:])
+            seed = int(seed)
+            N = int(N)
+        else:
+            *_,seed = folder_name.split('_')
+            N = 0 
+            tau = 0
+            seed = int(seed)
+
+        for model in all_methods:
+            fname = os.path.join(folder, folder_name, model+"_ite.csv")
+            if os.path.isfile(fname):
+                ite_df = pd.read_csv(fname, index_col=0)                  
+                ite_df['method'] = model
+                ite_df.reset_index(names="data_index", inplace=True)
+                if model in ('bart', 'causal_forest'):
+                    ite_df['data_index'] = ite_df['data_index'] - 1
+                ite_df['seed'] = seed
+                ite_df['N'] = N
+                ite_df['tau'] = tau
+                ite_dfs.append(ite_df)
+        if ('additive' in folder) and ('nonadditive' not in folder):
+            sim_data = AdditiveSimulatedData(P=10, tau=tau, seed=seed)
+            X, Y, T, H, H_prob = sim_data.generate_data(N=N)
+            ite = sim_data.ite(X)
+        ite_df = pd.DataFrame({"ITE":ite, "method":"ground_truth", "seed":seed, "N":N,"tau":tau})
+        ite_df.reset_index(names="data_index", inplace=True)
+        ite_dfs.append(ite_df)
+    
+    ite_df = pd.concat(ite_dfs, ignore_index=True)
+    pivot_df = ite_df.pivot(index=["seed", "N", "tau", "data_index"], columns="method", values="ITE").reset_index()
+    
+    ## Correlation of ITEs
+    corr_df = pivot_df[["N", "tau", "seed", "additive_causal2groups", "nonadditive_causal2groups", "bart", "causal_forest", "ground_truth"]].groupby(["N", "tau", "seed"]).corr().reset_index()
+    corr_df = corr_df[["N", "tau", "seed", "method", "ground_truth"]].rename(columns={"ground_truth":"ITE correlation"})
+
+    mean_df = corr_df.drop(columns="seed").groupby(["N", "tau", "method"]).mean().reset_index()
+    std_df = corr_df.drop(columns="seed").groupby(["N", "tau", "method"]).std().reset_index()
+    nobs = corr_df.drop(columns="seed").groupby(["N", "tau", "method"]).size().reset_index()
+    res_df = mean_df.merge(std_df, on=["N", "tau", "method"], suffixes=('_mean', '_stdv'))
+    res_df = res_df.merge(nobs, on=["N", "tau", "method"])
+    res_df.rename(columns={0:"count"}, inplace=True)
+    res_df['ITE correlation_CI'] = 1.96*res_df['ITE correlation_stdv']/np.sqrt(res_df['count'])
+
+    corr_df = res_df[res_df['method']!='ground_truth'].reset_index(drop=True)
+    corr_df.replace(abbrev2full, inplace=True)
+
+    ## ATE bias
+    ate_df = pivot_df.drop(columns="data_index").groupby(["seed", "N", "tau"]).mean().reset_index()
+    for method in ["additive_causal2groups", "nonadditive_causal2groups", "bart", "causal_forest"]:
+        ate_df[method+'_ate_bias'] = ate_df[method] - ate_df['ground_truth']
+    ate_df = ate_df[['N', 'tau'] + [x for x in ate_df.columns if x.endswith('_ate_bias')]]
+    ate_df = ate_df.melt(id_vars=['N', 'tau'], value_vars=[x for x in ate_df.columns if x.endswith('_ate_bias')], var_name='method', value_name='ATE bias')
+    ate_df = ate_df.replace({(method+'_ate_bias'):method for method in ["additive_causal2groups", "nonadditive_causal2groups", "bart", "causal_forest"]})
+
+    mean_df = ate_df.groupby(["N", "tau", "method"]).mean().reset_index()
+    std_df = ate_df.groupby(["N", "tau", "method"]).std().reset_index()
+    nobs = ate_df.groupby(["N", "tau", "method"]).size().reset_index()
+    res_df = mean_df.merge(std_df, on=["N", "tau", "method"], suffixes=('_mean', '_stdv'))
+    res_df = res_df.merge(nobs, on=["N", "tau", "method"])
+    res_df.rename(columns={0:"count"}, inplace=True)
+    res_df['ATE bias_CI'] = 1.96*res_df['ATE bias_stdv']/np.sqrt(res_df['count'])
+
+    ate_df = res_df[res_df['method']!='ground_truth'].reset_index(drop=True)
+    ate_df.replace(abbrev2full, inplace=True)
+
+    return(ate_df.merge(corr_df, on=["N", "tau", "method"]))
 
 
 def load_roc(folder):
@@ -186,7 +262,6 @@ class ResultsInterpreter:
             self.fdr_df = self.fdr_df[~self.fdr_df['method'].isin(['Add-C2G', "NP-C2G"])].reset_index(drop=True)
             self.fdr_df.replace('Add-C2G-EC', 'Add-C2G', inplace=True)
             self.fdr_df.replace('NP-C2G-EC', 'NP-C2G', inplace=True)
-
 
     def get_df(self, metric):
         if metric=="roc":

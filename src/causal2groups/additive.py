@@ -167,7 +167,6 @@ class AdditiveCausal2G:
         ite_hat = self.y_altpreds - self.y_nullpreds
         return(ite_hat)
     
-    
     def calculate_fdr(self, T:np.ndarray, H:np.ndarray, fdr_levels:np.ndarray, empirical_control:bool=False):
         T = T.astype(np.bool_)
         null_posterior = self.null_posterior.copy()
