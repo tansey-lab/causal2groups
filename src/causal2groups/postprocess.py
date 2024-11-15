@@ -85,10 +85,14 @@ def load_ite(folder):
             sim_data = AdditiveSimulatedData(P=10, tau=tau, seed=seed)
             X, Y, T, H, H_prob = sim_data.generate_data(N=N)
             ite = sim_data.ite(X)
+        elif 'nonadditive' in folder:
+            sim_data = NonadditiveSimulatedData(P=10, tau=tau, seed=seed)
+            X, Y, T, H, H_prob = sim_data.generate_data(N=N)
+            ite = sim_data.ite(X)
         ite_df = pd.DataFrame({"ITE":ite, "method":"ground_truth", "seed":seed, "N":N,"tau":tau})
         ite_df.reset_index(names="data_index", inplace=True)
         ite_dfs.append(ite_df)
-    
+
     ite_df = pd.concat(ite_dfs, ignore_index=True)
     pivot_df = ite_df.pivot(index=["seed", "N", "tau", "data_index"], columns="method", values="ITE").reset_index()
     
