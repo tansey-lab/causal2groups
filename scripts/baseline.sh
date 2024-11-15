@@ -6,9 +6,8 @@
 #SBATCH --cpus-per-task=2
 #SBATCH --mem=16G
 #SBATCH --time=1:00:00
-#SBATCH --array=0-29                                                                                              
-#SBATCH --output=output_logs/base_%a.out  
-#SBATCH --error=output_logs/base_%a.err  
+#SBATCH --output=output_logs/base.out  
+#SBATCH --error=output_logs/base.err  
 
 source /home/toshc/miniconda3/bin/activate
 conda activate c2g
