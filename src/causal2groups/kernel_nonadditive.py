@@ -1,6 +1,7 @@
 import numpy as np
 from tqdm import trange
 from causal2groups.kernel_density import ConditionalKDE
+from causal2groups.kernel_ridge import KernelRidgeRegression
 
 class KernelNonadditiveCausal2G:
     def __init__(self, 
@@ -23,11 +24,16 @@ class KernelNonadditiveCausal2G:
         self.density_thresh = density_thresh
         self.n_grid = n_grid
         self.verbose = verbose
+        self.null_mean_model = None
+        self.treat_mean_model = None
+
 
     def fit(self, X:np.ndarray, Y:np.ndarray, T:np.ndarray):
         '''Fits a nonadditive causal two-groups model and performs selection on
         the treated population with control of the FDR at the target level.'''
         self.X = X.copy()
+        self.Y = Y.copy()
+        self.T = T.copy()
 
         if self.verbose:
             print('Fitting null model.')
@@ -120,9 +126,27 @@ class KernelNonadditiveCausal2G:
         return(null_posterior)
 
     def predict_ite(self):
-        null_preds = self.null_model.predict_mean(self.X)
-        treat_preds = self.treatment_model.predict_mean(self.X)
-        pi_star = np.clip(self.pi_star, a_min=0.0001, a_max=0.9999)
+        ## Fit a model to the means
+        if self.null_mean_model is None:
+            self.null_mean_model = KernelRidgeRegression(n_bandwidths=6, reg_params=np.logspace(-5, 5, num=50))
+            self.null_mean_model.fit_via_gcv(X=self.X[self.T==0], y=self.Y[self.T==0])
+
+        if self.treat_mean_model is None:
+            self.treat_mean_model = KernelRidgeRegression(n_bandwidths=6, reg_params=np.logspace(-5, 5, num=50))
+            self.treat_mean_model.fit_via_gcv(X=self.X[self.T==1], y=self.Y[self.T==1])
+
+
+        null_preds = np.empty_like(self.Y, dtype=float)
+        null_preds[self.T==0] = self.null_mean_model.loo_predictions()
+        null_preds[self.T==1] = self.null_mean_model.predict(X_pred=self.X[self.T==1])
+
+
+        treat_preds = np.empty_like(self.Y, dtype=float)
+        treat_preds[self.T==1] = self.treat_mean_model.loo_predictions()
+        treat_preds[self.T==0] = self.treat_mean_model.predict(X_pred=self.X[self.T==0])
+
+
+        pi_star = np.clip(self.pi_star, a_min=0.01, a_max=0.99)
         alt_preds = (1./pi_star)*(treat_preds - (1 - pi_star)*null_preds)
         ite_hat = alt_preds - null_preds
         return(ite_hat)

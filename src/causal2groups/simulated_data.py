@@ -58,8 +58,11 @@ class NonadditiveSimulatedData:
         W = X.dot(self.gamma)    # treatment propensity
         interactions = self.B * X[:,None] * X[:,:,None]
         interactions = (self.Z * interactions).sum(axis=-1).sum(axis=-1)
-        offset = self.c * ilogit(W) + self.tau * ( 1. + np.abs(interactions))
-        return(np.square(offset))
+        # offset = self.c * ilogit(W) + self.tau * ( 1. + np.abs(interactions))
+        a = self.c * ilogit(W)
+        b = self.tau * ( 1. + np.abs(interactions))
+        res = np.square(a) + (4./3.)*np.square(b) + 2.*a*b
+        return(res)
     
     def ite(self, X:np.ndarray):
         mu_0 = self.null_mean(X)
