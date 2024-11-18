@@ -127,10 +127,10 @@ if __name__ == '__main__':
     if setting in ['additive', 'nonadditive']:
         taus = [1, 3, 5]
         Ns = [1000, 10000]
-        seeds = np.arange(100, 130)
+        seeds = np.arange(100, 150)
         setups = list(product(Ns, taus, seeds))
     else:
-        seeds = np.arange(100, 130)
+        seeds = np.arange(100, 150)
         setups = seeds
         features_df = pd.read_csv("./data/all_features.csv", index_col=0)
         outcomes_df = pd.read_csv('./data/all_outcomes.csv')

@@ -1,6 +1,9 @@
 import numpy as np
 import pandas as pd
 from scipy.special import expit as ilogit
+from scipy.stats import norm
+from scipy.integrate import simpson
+
 
 def pca(X, pc=50):
     from sklearn.decomposition import PCA
@@ -47,6 +50,32 @@ class NonadditiveSimulatedData:
         Y = self.rng.normal(np.square(offset), self.v, size=n)
         return(Y, T, H, H_prob)
     
+    def conditional_null_density(self, X:np.ndarray, y_grid:np.ndarray):
+        interactions = self.B * X[:,None] * X[:,:,None]
+        interactions = (self.Z * interactions).sum(axis=-1).sum(axis=-1)
+        W = X.dot(self.gamma)
+        null_offset = self.c * ilogit(W) 
+        null_pdf = norm.pdf(x=y_grid[np.newaxis,:], loc=np.square(null_offset[:,np.newaxis]), scale=self.v)
+        return(null_pdf)
+
+    def conditional_alt_density(self, X:np.ndarray, y_grid:np.ndarray):
+        interactions = self.B * X[:,None] * X[:,:,None]
+        interactions = (self.Z * interactions).sum(axis=-1).sum(axis=-1)
+        W = X.dot(self.gamma)
+        null_offset = self.c * ilogit(W) 
+        u_grid = np.linspace(0, 2, num=300)
+        alt_mu = null_offset + self.tau * ( 1. + np.abs(interactions)) * u_grid[:,np.newaxis]
+        alt_pdf = 0.5*norm.pdf(x=y_grid[:,np.newaxis, np.newaxis], loc=np.square(alt_mu), scale=self.v)
+        alt_pdf = simpson(x=u_grid, y=alt_pdf, axis=1)
+        return(alt_pdf.T)
+    
+    def conditional_treat_density(self, X:np.ndarray, y_grid:np.ndarray):
+        pi = ilogit(X.dot(self.beta))[:,np.newaxis]
+        null_pdf = self.conditional_null_density(X,y_grid)
+        alt_pdf = self.conditional_alt_density(X,y_grid)
+        treat_pdf = (1-pi)*null_pdf + pi*alt_pdf
+        return(treat_pdf)
+
     def null_mean(self, X:np.ndarray):
         W = X.dot(self.gamma)    # treatment propensity
         interactions = self.B * X[:,None] * X[:,:,None]

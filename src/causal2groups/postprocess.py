@@ -227,8 +227,8 @@ def load_fdr(folder):
     res_df['Observed FDR_STDERR'] = res_df['Observed FDR_stdv']/np.sqrt(res_df['count'])
     res_df['Observed power_CI'] = 1.96*res_df['Observed power_stdv']/np.sqrt(res_df['count'])
 
-    res_df['Observed FDR_mean'] = res_df['Observed FDR_mean'].round(3)
-    res_df['Observed FDR_CI'] = res_df['Observed FDR_CI'].round(3)
+    res_df['Observed FDR_mean'] = res_df['Observed FDR_mean'].round(2)
+    res_df['Observed FDR_CI'] = res_df['Observed FDR_CI'].round(2)
 
     ## Calculate valid power
     m_df = df.merge(res_df, on=["N", "tau", "method", "Nominal FDR"])
@@ -247,8 +247,8 @@ def load_fdr(folder):
     mres_df['Valid power_CI'] = 1.96*mres_df['Valid power_stdv']/np.sqrt(mres_df['count'])
     mres_df = mres_df[["N", "tau", "method", "Nominal FDR", 'Valid power_mean', 'Valid power_CI']]
 
-    mres_df["Valid power_mean"] = mres_df["Valid power_mean"].round(3)
-    mres_df["Valid power_CI"] = mres_df["Valid power_CI"].round(3)
+    mres_df["Valid power_mean"] = mres_df["Valid power_mean"].round(2)
+    mres_df["Valid power_CI"] = mres_df["Valid power_CI"].round(2)
 
     fdf = res_df.merge(mres_df, on=["N", "tau", "method", "Nominal FDR"])
     return(fdf)
