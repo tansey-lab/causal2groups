@@ -80,7 +80,7 @@ def run_simulation(dir_name, N, tau, seed):
         ite_df = pd.DataFrame({"ITE":add_causal2groups.predict_ite()})
         ite_df.to_csv(os.path.join(dir_name, "additive_causal2groups_ite.csv"))
 
-    if not os.path.isfile(os.path.join(dir_name, "frequentist_raw.csv")):
+    if not os.path.isfile(os.path.join(dir_name, "frequentist_ite.csv")):
         ## Fit frequentist model
         kernel_freq = KernelFrequentist(kernel_n_neighbors=[50, 100, 200], 
                                         kernel_bandwidth_neighbors=[2, 5, 10, 50, 100, 500])
@@ -93,6 +93,9 @@ def run_simulation(dir_name, N, tau, seed):
         raw_df = pd.DataFrame({"H":H[T==1], "q_value":false_discovery_control(kernel_freq.null_density_upper[T==1])})
         raw_df.to_csv(os.path.join(dir_name, "frequentist_raw.csv"))
 
+        ## Compute ITE
+        ite_df = pd.DataFrame({"ITE":kernel_freq.predict_ite()})
+        ite_df.to_csv(os.path.join(dir_name, "frequentist_ite.csv"))
 
     if not os.path.isfile(os.path.join(dir_name, "bart.csv")):
         ## Run BART

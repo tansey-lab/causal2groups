@@ -311,10 +311,9 @@ class ResultsInterpreter:
         self.roc_df = pd.concat(roc_dfs, ignore_index=True)
         self.auc_df = pd.concat(auc_dfs, ignore_index=True)
 
-
     def load_ite(self):
         ite_dfs = []
-        for setting in ['additive', 'nonadditive', 'nutlin']:
+        for setting in ['additive', 'nonadditive']:
             folder = os.path.join(self.result_folder, setting)
             ite_df = load_ite(folder)
             ite_df['Setting'] = setting

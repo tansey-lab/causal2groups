@@ -2,6 +2,7 @@ import numpy as np
 from causal2groups.kernel_density import ConditionalKDE
 from scipy.stats import false_discovery_control
 from tqdm import trange
+from causal2groups.kernel_ridge import KernelRidgeRegression
 
 class KernelFrequentist:
     def __init__(self, 
@@ -59,3 +60,26 @@ class KernelFrequentist:
             power_observed[i] = np.sum(H_treated[mask])/n_pos
 
         return(fdr_observed, power_observed)
+    
+    def predict_ite(self):
+        ## Fit a model to the means
+        if self.null_mean_model is None:
+            self.null_mean_model = KernelRidgeRegression(n_bandwidths=6, reg_params=np.logspace(-5, 5, num=50))
+            self.null_mean_model.fit_via_gcv(X=self.X[self.T==0], y=self.Y[self.T==0])
+
+        if self.treat_mean_model is None:
+            self.treat_mean_model = KernelRidgeRegression(n_bandwidths=6, reg_params=np.logspace(-5, 5, num=50))
+            self.treat_mean_model.fit_via_gcv(X=self.X[self.T==1], y=self.Y[self.T==1])
+
+
+        null_preds = np.empty_like(self.Y, dtype=float)
+        null_preds[self.T==0] = self.null_mean_model.loo_predictions()
+        null_preds[self.T==1] = self.null_mean_model.predict(X_pred=self.X[self.T==1])
+
+
+        treat_preds = np.empty_like(self.Y, dtype=float)
+        treat_preds[self.T==1] = self.treat_mean_model.loo_predictions()
+        treat_preds[self.T==0] = self.treat_mean_model.predict(X_pred=self.X[self.T==0])
+
+        ite_hat = treat_preds - null_preds
+        return(ite_hat)
