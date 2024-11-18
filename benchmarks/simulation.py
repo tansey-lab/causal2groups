@@ -47,9 +47,8 @@ def run_simulation(dir_name, N, tau, seed):
         fdr_df.to_csv(os.path.join(dir_name, "nonadditive_causal2groups_ec.csv"))
 
         ## Compute ITE
-        ite_upper = kernel_causal2groups.predict_ite()
-        ite_lower = kernel_causal2groups.predict_lower_ite()
-        ite_df = pd.DataFrame({"ITE":ite_upper, "ITE lower bound":ite_lower})
+        ite_upper, ite_lower = kernel_causal2groups.predict_ite()
+        ite_df = pd.DataFrame({"ITE upper bound":ite_upper, "ITE lower bound":ite_lower})
         ite_df.to_csv(os.path.join(dir_name, "nonadditive_causal2groups_ite.csv"))
 
     if not os.path.isfile(os.path.join(dir_name, "additive_causal2groups_full.csv")):
