@@ -155,7 +155,7 @@ if __name__ == '__main__':
 
     ## Assign each worker to its corresponding setting
     remaining_setups = [setup for setup in setups if not job_complete(setting, setup)]
-    setup_assignment = np.array_split(setups, n_workers)
+    setup_assignment = np.array_split(remaining_setups, n_workers)
     curr_setups = setup_assignment[worker_id]
 
 
