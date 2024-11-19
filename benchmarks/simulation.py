@@ -107,6 +107,22 @@ def run_simulation(dir_name, N, tau, seed):
         subprocess.call(["Rscript", "--vanilla", "R/FDRreg.R", dir_name])
 
 
+def job_complete(setting, setup):
+    if setting in ['additive', 'nonadditive']:
+        N, tau, seed = setup
+        dir_name = "results/{}/N_{}_tau{}_seed_{}".format(setting, N, tau, seed)
+    else:
+        seed = setup
+        dir_name = "results/nutlin/pca_seed_{}".format(seed)
+    
+    if not os.path.isdir(dir_name):
+        return False
+    
+    fnames = ["nonadditive_causal2groups_full.csv", "additive_causal2groups_full.csv", 
+              "frequentist_raw.csv", "bart.csv", "causal_forest.csv", "FDRreg.csv"]
+
+    return(all([os.path.isfile(os.path.join(dir_name, x)) for x in fnames]))
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--n_workers', type=int, default=1)
@@ -138,6 +154,7 @@ if __name__ == '__main__':
 
 
     ## Assign each worker to its corresponding setting
+    remaining_setups = [setup for setup in setups if not job_complete(setting, setup)]
     setup_assignment = np.array_split(setups, n_workers)
     curr_setups = setup_assignment[worker_id]
 
