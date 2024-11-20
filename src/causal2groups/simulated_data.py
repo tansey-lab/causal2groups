@@ -58,7 +58,7 @@ class NonadditiveSimulatedData:
         null_pdf = norm.pdf(x=y_grid[np.newaxis,:], loc=np.square(null_offset[:,np.newaxis]), scale=self.v)
         return(null_pdf)
 
-    def conditional_alt_density(self, X:np.ndarray, y_grid:np.ndarray, chunk_size:int=100):
+    def conditional_alt_density(self, X:np.ndarray, y_grid:np.ndarray, chunk_size:int=100, progress_bar:bool=False):
         interactions = self.B * X[:,None] * X[:,:,None]
         interactions = (self.Z * interactions).sum(axis=-1).sum(axis=-1)
         W = X.dot(self.gamma)
@@ -69,7 +69,7 @@ class NonadditiveSimulatedData:
         n_chunks = max(int(N/chunk_size), 1)
         splits = np.array_split(np.arange(N), n_chunks)
         res = []
-        for idx in tqdm(splits):
+        for idx in tqdm(splits, disable=(not progress_bar)):
             alt_mu = null_offset[idx] + self.tau * ( 1. + np.abs(interactions[idx])) * u_grid[:,np.newaxis]
             alt_pdf = 0.5*norm.pdf(x=y_grid[:,np.newaxis, np.newaxis], loc=np.square(alt_mu), scale=self.v)
             alt_pdf = simpson(x=u_grid, y=alt_pdf, axis=1)
