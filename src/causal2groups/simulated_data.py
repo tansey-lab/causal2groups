@@ -3,7 +3,7 @@ import pandas as pd
 from scipy.special import expit as ilogit
 from scipy.stats import norm
 from scipy.integrate import simpson
-
+from tqdm import tqdm
 
 def pca(X, pc=50):
     from sklearn.decomposition import PCA
@@ -58,16 +58,24 @@ class NonadditiveSimulatedData:
         null_pdf = norm.pdf(x=y_grid[np.newaxis,:], loc=np.square(null_offset[:,np.newaxis]), scale=self.v)
         return(null_pdf)
 
-    def conditional_alt_density(self, X:np.ndarray, y_grid:np.ndarray):
+    def conditional_alt_density(self, X:np.ndarray, y_grid:np.ndarray, chunk_size:int=100):
         interactions = self.B * X[:,None] * X[:,:,None]
         interactions = (self.Z * interactions).sum(axis=-1).sum(axis=-1)
         W = X.dot(self.gamma)
         null_offset = self.c * ilogit(W) 
         u_grid = np.linspace(0, 2, num=300)
-        alt_mu = null_offset + self.tau * ( 1. + np.abs(interactions)) * u_grid[:,np.newaxis]
-        alt_pdf = 0.5*norm.pdf(x=y_grid[:,np.newaxis, np.newaxis], loc=np.square(alt_mu), scale=self.v)
-        alt_pdf = simpson(x=u_grid, y=alt_pdf, axis=1)
-        return(alt_pdf.T)
+
+        N = interactions.shape[0]
+        n_chunks = max(int(N/chunk_size), 1)
+        splits = np.array_split(np.arange(N), n_chunks)
+        res = []
+        for idx in tqdm(splits):
+            alt_mu = null_offset[idx] + self.tau * ( 1. + np.abs(interactions[idx])) * u_grid[:,np.newaxis]
+            alt_pdf = 0.5*norm.pdf(x=y_grid[:,np.newaxis, np.newaxis], loc=np.square(alt_mu), scale=self.v)
+            alt_pdf = simpson(x=u_grid, y=alt_pdf, axis=1)
+            res.append(alt_pdf.T)
+        alt_pdf = np.concatenate(res, axis=0)
+        return(alt_pdf)
     
     def conditional_treat_density(self, X:np.ndarray, y_grid:np.ndarray):
         pi = ilogit(X.dot(self.beta))[:,np.newaxis]
@@ -87,7 +95,6 @@ class NonadditiveSimulatedData:
         W = X.dot(self.gamma)    # treatment propensity
         interactions = self.B * X[:,None] * X[:,:,None]
         interactions = (self.Z * interactions).sum(axis=-1).sum(axis=-1)
-        # offset = self.c * ilogit(W) + self.tau * ( 1. + np.abs(interactions))
         a = self.c * ilogit(W)
         b = self.tau * ( 1. + np.abs(interactions))
         res = np.square(a) + (4./3.)*np.square(b) + 2.*a*b
@@ -125,7 +132,7 @@ class AdditiveSimulatedData:
 
         Y = np.where(H==1, Y_effect, Y_null)
         return(X, Y, T, H, H_prob)
-    
+
     def prior_prob(self, X:np.ndarray):
         H_prob = ilogit(X.dot(self.theta))
         return(H_prob)
@@ -143,6 +150,24 @@ class AdditiveSimulatedData:
         mu_0 = self.null_mean(X)
         mu_1 = self.alt_mean(X)
         return(mu_1 - mu_0)
+    
+    def conditional_null_density(self, X:np.ndarray, y_grid:np.ndarray):
+        mu_0 = self.null_mean(X)
+        null_pdf = norm.pdf(x=y_grid[np.newaxis,:], loc=mu_0[:,np.newaxis], scale=self.v)
+        return(null_pdf)
+
+    def conditional_alt_density(self, X:np.ndarray, y_grid:np.ndarray):
+        mu_1 = self.alt_mean(X)
+        alt_pdf = norm.pdf(x=y_grid[np.newaxis,:], loc=mu_1[:,np.newaxis], scale=self.v)
+        return(alt_pdf)
+
+    def conditional_treat_density(self, X:np.ndarray, y_grid:np.ndarray):
+        pi = self.prior_prob(X)[:,np.newaxis]
+        null_pdf = self.conditional_null_density(X, y_grid)
+        alt_pdf = self.conditional_alt_density(X, y_grid)
+        treat_pdf = (1-pi)*null_pdf + pi*alt_pdf
+        return(treat_pdf)
+
 
 class GDSCSemiSynthetic:
     def __init__(self, 

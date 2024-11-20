@@ -132,28 +132,28 @@ class KernelNonadditiveCausal2G:
     def predict_ite(self):
         ## Fit a model to the means
         if self.null_mean_model is None:
-            self.null_mean_model = KernelRidgeRegression(n_bandwidths=6, reg_params=np.logspace(-5, 5, num=50))
-            self.null_mean_model.fit_via_gcv(X=self.X[self.T==0], y=self.Y[self.T==0])
+            self.null_mean_model = KernelRidgeRegression(n_bandwidths=6, reg_params=np.logspace(-5, 2, num=50))
+            self.null_mean_model.fit_via_gcv(X=self.X[self.T==0], y=self.Y[self.T==0], verbose=self.verbose)
 
         if self.treat_mean_model is None:
-            self.treat_mean_model = KernelRidgeRegression(n_bandwidths=6, reg_params=np.logspace(-5, 5, num=50))
-            self.treat_mean_model.fit_via_gcv(X=self.X[self.T==1], y=self.Y[self.T==1])
+            self.treat_mean_model = KernelRidgeRegression(n_bandwidths=6, reg_params=np.logspace(-5, 2, num=50))
+            self.treat_mean_model.fit_via_gcv(X=self.X[self.T==1], y=self.Y[self.T==1], verbose=self.verbose)
 
 
-        null_preds = np.empty_like(self.Y, dtype=float)
-        null_preds[self.T==0] = self.null_mean_model.loo_predictions()
-        null_preds[self.T==1] = self.null_mean_model.predict(X_pred=self.X[self.T==1])
+        self.null_preds = np.empty_like(self.Y, dtype=float)
+        self.null_preds[self.T==0] = self.null_mean_model.loo_predictions()
+        self.null_preds[self.T==1] = self.null_mean_model.predict(X_pred=self.X[self.T==1])
 
 
-        treat_preds = np.empty_like(self.Y, dtype=float)
-        treat_preds[self.T==1] = self.treat_mean_model.loo_predictions()
-        treat_preds[self.T==0] = self.treat_mean_model.predict(X_pred=self.X[self.T==0])
+        self.treat_preds = np.empty_like(self.Y, dtype=float)
+        self.treat_preds[self.T==1] = self.treat_mean_model.loo_predictions()
+        self.treat_preds[self.T==0] = self.treat_mean_model.predict(X_pred=self.X[self.T==0])
 
 
         pi_star = np.clip(self.pi_star, a_min=0.01, a_max=0.99)
-        alt_preds = (1./pi_star)*(treat_preds - (1 - pi_star)*null_preds)
-        ite_upper = alt_preds - null_preds
-        ite_lower = treat_preds - null_preds
+        self.alt_preds = (1./pi_star)*(self.treat_preds - (1 - pi_star)*self.null_preds)
+        ite_upper = self.alt_preds - self.null_preds
+        ite_lower = self.treat_preds - self.null_preds
 
         return(ite_upper, ite_lower)
 
