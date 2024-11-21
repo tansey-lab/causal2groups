@@ -24,7 +24,7 @@ def run_simulation(dir_name, N, tau, seed):
     if not os.path.isfile(os.path.join(dir_name, "nonadditive_causal2groups_full.csv")):
         ## Fit nonadditive causal2groups
         kernel_causal2groups = KernelNonadditiveCausal2G(kernel_n_neighbors=[50, 100, 200], 
-                                                        kernel_bandwidth_neighbors=[2, 5, 10, 50, 100, 500], 
+                                                        kernel_bandwidth_neighbor_fracs=np.logspace(-3,0, num=10), 
                                                         verbose=True)
         kernel_causal2groups.fit(X=X, Y=Y, T=T)
         

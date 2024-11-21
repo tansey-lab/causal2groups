@@ -6,7 +6,7 @@ from causal2groups.kernel_ridge import KernelRidgeRegression
 class KernelNonadditiveCausal2G:
     def __init__(self, 
                  kernel_n_neighbors:list, 
-                 kernel_bandwidth_neighbors:list,
+                 kernel_bandwidth_neighbor_fracs:list,
                  n_bootstraps:int=100,
                  bootstrap_quantile:float=0.2,
                  empirical_control:bool=True,
@@ -17,7 +17,7 @@ class KernelNonadditiveCausal2G:
         self.null_model = ConditionalKDE()
         self.treatment_model = ConditionalKDE()
         self.kernel_n_neighbors = kernel_n_neighbors
-        self.kernel_bandwidth_neighbors = kernel_bandwidth_neighbors
+        self.kernel_bandwidth_neighbor_fracs = kernel_bandwidth_neighbor_fracs
         self.n_bootstraps = n_bootstraps
         self.bootstrap_quantile = bootstrap_quantile
         self.empirical_control = empirical_control
@@ -41,14 +41,14 @@ class KernelNonadditiveCausal2G:
         self.null_model.fit_via_loo_cv(X=X[T==0], 
                                        y=Y[T==0], 
                                        n_neighbors=self.kernel_n_neighbors, 
-                                       bandwidth_neighbors=self.kernel_bandwidth_neighbors, 
+                                       bandwidth_neighbor_fracs=self.kernel_bandwidth_neighbor_fracs, 
                                        verbose=self.verbose)
 
         if self.verbose:
             print('Drawing bootstrap samples from null model.')
 
         self.grid = np.linspace(np.min(Y), np.max(Y), num=self.n_grid)
-        null_grid_boot = self.null_model.bootstrap(X, self.grid)
+        null_grid_boot = self.null_model.bootstrap(X, self.grid, verbose=self.verbose)
 
         if self.verbose:
             print('Fitting treatment model.')
@@ -56,7 +56,7 @@ class KernelNonadditiveCausal2G:
         self.treatment_model.fit_via_loo_cv(X=X[T==1], 
                                             y=Y[T==1], 
                                             n_neighbors=self.kernel_n_neighbors, 
-                                            bandwidth_neighbors=self.kernel_bandwidth_neighbors, 
+                                            bandwidth_neighbor_fracs=self.kernel_bandwidth_neighbor_fracs, 
                                             verbose=self.verbose)
 
         if self.verbose:
@@ -65,24 +65,24 @@ class KernelNonadditiveCausal2G:
         treat_grid_boot = self.treatment_model.bootstrap(X, self.grid, verbose=self.verbose)
 
         ## Take quantiles across bootstrap samples
-        treat_grid_upper = np.quantile(treat_grid_boot, 1-self.bootstrap_quantile, axis=0)
-        treat_grid_lower = np.quantile(treat_grid_boot, self.bootstrap_quantile, axis=0)
+        self.treat_grid_upper = np.quantile(treat_grid_boot, 1-self.bootstrap_quantile, axis=0)
+        self.treat_grid_lower = np.quantile(treat_grid_boot, self.bootstrap_quantile, axis=0)
 
-        null_grid_upper = np.quantile(null_grid_boot, 1-self.bootstrap_quantile, axis=0)
-        null_grid_lower = np.quantile(null_grid_boot, self.bootstrap_quantile, axis=0)
+        self.null_grid_upper = np.quantile(null_grid_boot, 1-self.bootstrap_quantile, axis=0)
+        self.null_grid_lower = np.quantile(null_grid_boot, self.bootstrap_quantile, axis=0)
         
 
         ## Estimate conservative prior at each data point.
-        self.pi_star = self.estimate_conservative_prior(null_grid_lower=null_grid_lower, 
-                                                        treat_grid_upper=treat_grid_upper, 
+        self.pi_star = self.estimate_conservative_prior(null_grid_lower=self.null_grid_lower, 
+                                                        treat_grid_upper=self.treat_grid_upper, 
                                                         Y=Y)
         
         if self.verbose:
             print('Estimating null posterior')
         
         ## Estimate conservative prior at each data point.
-        self.null_posterior = self.estimate_null_posterior(null_grid_upper=null_grid_upper, 
-                                                           treat_grid_lower=treat_grid_lower,
+        self.null_posterior = self.estimate_null_posterior(null_grid_upper=self.null_grid_upper, 
+                                                           treat_grid_lower=self.treat_grid_lower,
                                                            pi_star=self.pi_star, Y=Y)
 
 
