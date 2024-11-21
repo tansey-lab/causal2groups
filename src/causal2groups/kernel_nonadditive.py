@@ -104,7 +104,7 @@ class KernelNonadditiveCausal2G:
             mask = treat_grid_upper[i]>self.density_thresh
             while not np.any(mask):
                 density_thresh = density_thresh*0.9
-                mask = treat_grid_upper[i]>self.density_thresh
+                mask = treat_grid_upper[i]>density_thresh
             pi_star[i] = np.clip(1 - np.quantile(fracs_conservative[i,mask], 0.01), 0.0, 1.0)
 
         return(pi_star)
