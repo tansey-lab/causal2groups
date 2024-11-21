@@ -22,7 +22,7 @@ class ConditionalKDE:
         
         bandwidth_neighbor_fracs = np.array(bandwidth_neighbor_fracs)
         bandwidth_neighbors = (bandwidth_neighbor_fracs*n_points).astype(int)
-        bandwidth_neighbors = np.unique(np.maximum(np.minimum(bandwidth_neighbors, (n_points-1)),1))
+        bandwidth_neighbors = np.unique(np.maximum(np.minimum(bandwidth_neighbors, (n_points-1)),2))
         
         n_neighbors = np.unique(np.minimum(n_neighbors, (n_points - 1)))
         max_neighbors = np.max(np.concatenate([n_neighbors, bandwidth_neighbors]))+1
@@ -37,9 +37,11 @@ class ConditionalKDE:
         
         ## x-bandwidths
         hxs = np.median(D_x[:,bandwidth_neighbors-1], axis=0)
+        hxs = hxs[hxs>0]
 
         ## y-bandwidths
         hys = np.median(D_y[:,bandwidth_neighbors-1], axis=0)
+        hys = hys[hys>0]
         hys = np.union1d(hxs, hys)
 
         ## Redefine y distance in terms of x distance
