@@ -45,10 +45,12 @@ class KernelNonadditiveCausal2G:
                                        verbose=self.verbose)
 
         if self.verbose:
+            print("Null model bandwidths:", self.null_model.hx, self.null_model.hy)
             print('Drawing bootstrap samples from null model.')
 
         self.grid = np.linspace(np.min(Y), np.max(Y), num=self.n_grid)
         null_grid_boot = self.null_model.bootstrap(X, self.grid, verbose=self.verbose)
+        null_grid_boot = np.clip(null_grid_boot, a_min=1e-100, a_max=1e100)
 
         if self.verbose:
             print('Fitting treatment model.')
@@ -60,9 +62,11 @@ class KernelNonadditiveCausal2G:
                                             verbose=self.verbose)
 
         if self.verbose:
+            print("Treatment model bandwidths:", self.treatment_model.hx, self.treatment_model.hy)
             print('Drawing bootstrap samples from treatment model.')
 
         treat_grid_boot = self.treatment_model.bootstrap(X, self.grid, verbose=self.verbose)
+        treat_grid_boot = np.clip(treat_grid_boot, a_min=1e-100, a_max=1e100)
 
         ## Take quantiles across bootstrap samples
         self.treat_grid_upper = np.quantile(treat_grid_boot, 1-self.bootstrap_quantile, axis=0)
@@ -70,7 +74,6 @@ class KernelNonadditiveCausal2G:
 
         self.null_grid_upper = np.quantile(null_grid_boot, 1-self.bootstrap_quantile, axis=0)
         self.null_grid_lower = np.quantile(null_grid_boot, self.bootstrap_quantile, axis=0)
-        
 
         ## Estimate conservative prior at each data point.
         self.pi_star = self.estimate_conservative_prior(null_grid_lower=self.null_grid_lower, 

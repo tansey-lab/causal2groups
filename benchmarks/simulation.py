@@ -11,6 +11,7 @@ import argparse
 from scipy.stats import false_discovery_control
 
 def run_simulation(dir_name, N, tau, seed):
+    print("N={}, tau={}, seed={}".format(N, tau, seed))
     ## Set seed
     np.random.seed(seed)
 
