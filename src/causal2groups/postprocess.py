@@ -3,7 +3,7 @@ import pandas as pd
 import os
 from sklearn.metrics import roc_curve
 from scipy.integrate import simpson
-from causal2groups.simulated_data import AdditiveSimulatedData, NonadditiveSimulatedData, GDSCSemiSynthetic
+from causal2groups.simulated_data import AdditiveSimulatedData, NonadditiveSimulatedData
 
 all_methods = ["additive_causal2groups", 
                "causal_forest", 
@@ -289,14 +289,17 @@ class ResultsInterpreter:
             fdr_df = load_fdr(folder)
             fdr_df['Setting'] = setting
             fdr_dfs.append(fdr_df)
-
         self.fdr_df = pd.concat(fdr_dfs, ignore_index=True)
 
         if not self.keep_no_ec:
             self.fdr_df = self.fdr_df[~self.fdr_df['method'].isin(['Add-C2G', "NP-C2G"])].reset_index(drop=True)
             self.fdr_df.replace('Add-C2G-EC', 'Add-C2G', inplace=True)
             self.fdr_df.replace('NP-C2G-EC', 'NP-C2G', inplace=True)
-    
+
+        oracle_df = pd.read_csv(os.path.join(self.result_folder, "oracle_compressed_fdr.csv"))
+        oracle_df["method"] = "NP-Oracle"
+        self.fdr_df = pd.concat([self.fdr_df,oracle_df], ignore_index=True)
+
     def load_roc(self):
         roc_dfs = []
         auc_dfs = []
