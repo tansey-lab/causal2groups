@@ -9,19 +9,22 @@ class ConditionalKDE:
         super().__init__()
 
     ## Fit via leave-one-out cross-validation
-    def fit_via_loo_cv(self, X, y, n_neighbors, bandwidth_neighbors, verbose:bool=False):   
+    def fit_via_loo_cv(self, X:np.ndarray, y:np.ndarray, n_neighbors, bandwidth_neighbor_fracs, verbose:bool=False):   
         self.X = X
         self.y = y
+        n_points, dim = X.shape
+
         if isinstance(n_neighbors, int):
             n_neighbors = [n_neighbors]
 
-        if isinstance(bandwidth_neighbors, int):
-            bandwidth_neighbors = [bandwidth_neighbors]
+        if isinstance(bandwidth_neighbor_fracs, float):
+            bandwidth_neighbor_fracs = [bandwidth_neighbor_fracs]
         
-        n_points, dim = X.shape
+        bandwidth_neighbor_fracs = np.array(bandwidth_neighbor_fracs)
+        bandwidth_neighbors = (bandwidth_neighbor_fracs*n_points).astype(int)
+        bandwidth_neighbors = np.unique(np.maximum(np.minimum(bandwidth_neighbors, (n_points-1)),2))
+        
         n_neighbors = np.unique(np.minimum(n_neighbors, (n_points - 1)))
-        bandwidth_neighbors = np.unique(np.maximum(np.minimum(bandwidth_neighbors, (n_points-1)),1))
-
         max_neighbors = np.max(np.concatenate([n_neighbors, bandwidth_neighbors]))+1
 
         tree_x = KDTree(X)
@@ -34,9 +37,12 @@ class ConditionalKDE:
         
         ## x-bandwidths
         hxs = np.median(D_x[:,bandwidth_neighbors-1], axis=0)
+        hxs = hxs[hxs>0]
 
         ## y-bandwidths
         hys = np.median(D_y[:,bandwidth_neighbors-1], axis=0)
+        hys = hys[hys>0]
+        hys = np.union1d(hxs, hys)
 
         ## Redefine y distance in terms of x distance
         D_y = np.abs(y[:,np.newaxis] - y[inds])

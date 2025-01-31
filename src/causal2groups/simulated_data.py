@@ -1,6 +1,9 @@
 import numpy as np
 import pandas as pd
 from scipy.special import expit as ilogit
+from scipy.stats import norm
+from scipy.integrate import simpson
+from tqdm import tqdm
 
 def pca(X, pc=50):
     from sklearn.decomposition import PCA
@@ -10,7 +13,7 @@ class NonadditiveSimulatedData:
     def __init__(self, P:int, tau:float, seed:int, sigma:float=1, v:float=1):
         self.rng = np.random.default_rng(seed)
         self.P = P
-        self.tau = tau
+        self.tau = np.sqrt(1 + tau)/2
         self.sigma = sigma
         self.v = v
 
@@ -18,6 +21,8 @@ class NonadditiveSimulatedData:
         self.gamma = self.rng.normal(0, sigma/np.sqrt(P), size=P)
         self.theta = self.rng.normal(0, sigma/np.sqrt(P), size=P)
         self.c = abs(self.rng.normal(0, 2)) # half gaussian to ensure positive correlation between T and Y
+        self.B = self.rng.random(size=(1,P, P)) <= 0.1
+        self.Z = self.rng.standard_t(3, size=(1,P,P))
 
     def generate_data(self, N:int):
         X = self.rng.normal(0, 1/np.sqrt(self.P), size=(N,self.P))
@@ -25,9 +30,11 @@ class NonadditiveSimulatedData:
         T = self.rng.binomial(1, ilogit(W), size=N)
         H_prob = ilogit(X.dot(self.beta))    # effective/response propensity
         H = T & self.rng.binomial(1, H_prob, size=N)
-        interactions = (self.rng.random(size=(1,X.shape[1], X.shape[1])) <= 0.1) * X[:,None] * X[:,:,None]
-        interactions = (self.rng.standard_t(3, size=(1,X.shape[1],X.shape[1])) * interactions).sum(axis=-1).sum(axis=-1)
-        Y = self.rng.normal(np.log1p(np.exp(self.c * W + X.dot(self.theta) + self.tau * H + interactions)), self.v, size=N)
+        interactions = self.B * X[:,None] * X[:,:,None]
+        interactions = (self.Z * interactions).sum(axis=-1).sum(axis=-1)
+        U = self.rng.uniform(low=0.0, high=2.0, size=N)
+        offset = self.c * ilogit(W) + self.tau * H * ( 1. + np.abs(interactions)) * U
+        Y = self.rng.normal(np.square(offset), self.v, size=N)
         return(X, Y, T, H, H_prob)
     
     def generate_conditional_data(self, x:np.ndarray, n:int):
@@ -36,11 +43,67 @@ class NonadditiveSimulatedData:
         T = self.rng.binomial(1, ilogit(W), size=n)
         H_prob = ilogit(X_.dot(self.beta))    # effective/response propensity
         H = T & self.rng.binomial(1, H_prob, size=n)
-        interactions = (self.rng.random(size=(1,X_.shape[1], X_.shape[1])) <= 0.1) * X_[:,None] * X_[:,:,None]
-        interactions = (self.rng.standard_t(3, size=(1,X_.shape[1],X_.shape[1])) * interactions).sum(axis=-1).sum(axis=-1)
-        Y = self.rng.normal(np.log1p(np.exp(self.c * W + X_.dot(self.theta) + self.tau * H + interactions)), self.v, size=n)
+        interactions = self.B * X_[:,None] * X_[:,:,None]
+        interactions = (self.Z * interactions).sum(axis=-1).sum(axis=-1)
+        U = self.rng.uniform(low=0.0, high=2.0, size=n)
+        offset = self.c * ilogit(W) + self.tau * H * ( 1. + np.abs(interactions)) * U
+        Y = self.rng.normal(np.square(offset), self.v, size=n)
         return(Y, T, H, H_prob)
     
+    def conditional_null_density(self, X:np.ndarray, y_grid:np.ndarray):
+        interactions = self.B * X[:,None] * X[:,:,None]
+        interactions = (self.Z * interactions).sum(axis=-1).sum(axis=-1)
+        W = X.dot(self.gamma)
+        null_offset = self.c * ilogit(W) 
+        null_pdf = norm.pdf(x=y_grid[np.newaxis,:], loc=np.square(null_offset[:,np.newaxis]), scale=self.v)
+        return(null_pdf)
+
+    def conditional_alt_density(self, X:np.ndarray, y_grid:np.ndarray, chunk_size:int=100, progress_bar:bool=False):
+        interactions = self.B * X[:,None] * X[:,:,None]
+        interactions = (self.Z * interactions).sum(axis=-1).sum(axis=-1)
+        W = X.dot(self.gamma)
+        null_offset = self.c * ilogit(W) 
+        u_grid = np.linspace(0, 2, num=300)
+
+        N = interactions.shape[0]
+        n_chunks = max(int(N/chunk_size), 1)
+        splits = np.array_split(np.arange(N), n_chunks)
+        res = []
+        for idx in tqdm(splits, disable=(not progress_bar)):
+            alt_mu = null_offset[idx] + self.tau * ( 1. + np.abs(interactions[idx])) * u_grid[:,np.newaxis]
+            alt_pdf = 0.5*norm.pdf(x=y_grid[:,np.newaxis, np.newaxis], loc=np.square(alt_mu), scale=self.v)
+            alt_pdf = simpson(x=u_grid, y=alt_pdf, axis=1)
+            res.append(alt_pdf.T)
+        alt_pdf = np.concatenate(res, axis=0)
+        return(alt_pdf)
+    
+    def conditional_treat_density(self, X:np.ndarray, y_grid:np.ndarray):
+        pi = ilogit(X.dot(self.beta))[:,np.newaxis]
+        null_pdf = self.conditional_null_density(X,y_grid)
+        alt_pdf = self.conditional_alt_density(X,y_grid)
+        treat_pdf = (1-pi)*null_pdf + pi*alt_pdf
+        return(treat_pdf)
+
+    def null_mean(self, X:np.ndarray):
+        W = X.dot(self.gamma)    # treatment propensity
+        interactions = self.B * X[:,None] * X[:,:,None]
+        interactions = (self.Z * interactions).sum(axis=-1).sum(axis=-1)
+        offset = self.c * ilogit(W)
+        return(np.square(offset))
+
+    def alt_mean(self, X:np.ndarray):
+        W = X.dot(self.gamma)    # treatment propensity
+        interactions = self.B * X[:,None] * X[:,:,None]
+        interactions = (self.Z * interactions).sum(axis=-1).sum(axis=-1)
+        a = self.c * ilogit(W)
+        b = self.tau * ( 1. + np.abs(interactions))
+        res = np.square(a) + (4./3.)*np.square(b) + 2.*a*b
+        return(res)
+    
+    def ite(self, X:np.ndarray):
+        mu_0 = self.null_mean(X)
+        mu_1 = self.alt_mean(X)
+        return(mu_1 - mu_0)
 
 class AdditiveSimulatedData:
     def __init__(self, P:int, tau:float, seed:int, sigma:float=1, v:float=1):
@@ -69,7 +132,7 @@ class AdditiveSimulatedData:
 
         Y = np.where(H==1, Y_effect, Y_null)
         return(X, Y, T, H, H_prob)
-    
+
     def prior_prob(self, X:np.ndarray):
         H_prob = ilogit(X.dot(self.theta))
         return(H_prob)
@@ -82,6 +145,29 @@ class AdditiveSimulatedData:
         mu_0 = self.null_mean(X)
         mu_1 = mu_0 + self.tau*(np.abs(X).dot(np.abs(self.gamma)))
         return(mu_1)
+    
+    def ite(self, X:np.ndarray):
+        mu_0 = self.null_mean(X)
+        mu_1 = self.alt_mean(X)
+        return(mu_1 - mu_0)
+    
+    def conditional_null_density(self, X:np.ndarray, y_grid:np.ndarray):
+        mu_0 = self.null_mean(X)
+        null_pdf = norm.pdf(x=y_grid[np.newaxis,:], loc=mu_0[:,np.newaxis], scale=self.v)
+        return(null_pdf)
+
+    def conditional_alt_density(self, X:np.ndarray, y_grid:np.ndarray):
+        mu_1 = self.alt_mean(X)
+        alt_pdf = norm.pdf(x=y_grid[np.newaxis,:], loc=mu_1[:,np.newaxis], scale=self.v)
+        return(alt_pdf)
+
+    def conditional_treat_density(self, X:np.ndarray, y_grid:np.ndarray):
+        pi = self.prior_prob(X)[:,np.newaxis]
+        null_pdf = self.conditional_null_density(X, y_grid)
+        alt_pdf = self.conditional_alt_density(X, y_grid)
+        treat_pdf = (1-pi)*null_pdf + pi*alt_pdf
+        return(treat_pdf)
+
 
 class GDSCSemiSynthetic:
     def __init__(self, 
@@ -149,10 +235,9 @@ class GDSCSemiSynthetic:
 
 
     def generate_data(self, pca:bool):
-        gamma = 1
-        T_bias = self.rng.binomial(1, ilogit(self.W * gamma), size=self.Y.shape[0])
-        T_bias[self.H == 1] = self.T[self.H == 1]  # keep effective the same, only mix more noneffective into treated
-        Y_tilde = self.Y - gamma * self.W
+        T_bias = self.rng.binomial(1, ilogit(self.W), size=self.Y.shape[0])
+        T_bias[self.H == 1] = 1  # keep effective the same, only mix more noneffective into treated
+        Y_tilde = self.Y #- gamma * self.W
         
         X = self.X_pca if pca else self.X
         Y = Y_tilde

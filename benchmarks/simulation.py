@@ -11,6 +11,7 @@ import argparse
 from scipy.stats import false_discovery_control
 
 def run_simulation(dir_name, N, tau, seed):
+    print("N={}, tau={}, seed={}".format(N, tau, seed))
     ## Set seed
     np.random.seed(seed)
 
@@ -24,7 +25,7 @@ def run_simulation(dir_name, N, tau, seed):
     if not os.path.isfile(os.path.join(dir_name, "nonadditive_causal2groups_full.csv")):
         ## Fit nonadditive causal2groups
         kernel_causal2groups = KernelNonadditiveCausal2G(kernel_n_neighbors=[50, 100, 200], 
-                                                        kernel_bandwidth_neighbors=[2, 5, 10, 50, 100, 500], 
+                                                        kernel_bandwidth_neighbor_fracs=np.logspace(-3,0, num=10), 
                                                         verbose=True)
         kernel_causal2groups.fit(X=X, Y=Y, T=T)
         
@@ -45,6 +46,11 @@ def run_simulation(dir_name, N, tau, seed):
         obs_fdr, obs_pow = kernel_causal2groups.calculate_fdr(T=T, H=H, fdr_levels=fdr_levels, empirical_control=True)
         fdr_df = pd.DataFrame({"Nominal FDR":fdr_levels, "Observed FDR":obs_fdr, "Observed power":obs_pow, "N":N, "tau":tau, "seed":seed})
         fdr_df.to_csv(os.path.join(dir_name, "nonadditive_causal2groups_ec.csv"))
+
+        ## Compute ITE
+        ite_upper, ite_lower = kernel_causal2groups.predict_ite()
+        ite_df = pd.DataFrame({"ITE upper bound":ite_upper, "ITE lower bound":ite_lower})
+        ite_df.to_csv(os.path.join(dir_name, "nonadditive_causal2groups_ite.csv"))
 
     if not os.path.isfile(os.path.join(dir_name, "additive_causal2groups_full.csv")):
         ## Fit additive causal2groups
@@ -72,10 +78,14 @@ def run_simulation(dir_name, N, tau, seed):
         fdr_df = pd.DataFrame({"Nominal FDR":fdr_levels, "Observed FDR":obs_fdr, "Observed power":obs_pow, "N":N, "tau":tau, "seed":seed})
         fdr_df.to_csv(os.path.join(dir_name, "additive_causal2groups_ec.csv"))
 
+        ## Compute ITE
+        ite_df = pd.DataFrame({"ITE":add_causal2groups.predict_ite()})
+        ite_df.to_csv(os.path.join(dir_name, "additive_causal2groups_ite.csv"))
+
     if not os.path.isfile(os.path.join(dir_name, "frequentist_raw.csv")):
         ## Fit frequentist model
         kernel_freq = KernelFrequentist(kernel_n_neighbors=[50, 100, 200], 
-                                        kernel_bandwidth_neighbors=[2, 5, 10, 50, 100, 500])
+                                        kernel_bandwidth_neighbor_fracs=np.logspace(-3,0, num=10))
         kernel_freq.fit(X=X, Y=Y, T=T)
 
         obs_fdr, obs_pow = kernel_freq.calculate_fdr(T=T, H=H, fdr_levels=fdr_levels)
@@ -84,7 +94,6 @@ def run_simulation(dir_name, N, tau, seed):
 
         raw_df = pd.DataFrame({"H":H[T==1], "q_value":false_discovery_control(kernel_freq.null_density_upper[T==1])})
         raw_df.to_csv(os.path.join(dir_name, "frequentist_raw.csv"))
-
 
     if not os.path.isfile(os.path.join(dir_name, "bart.csv")):
         ## Run BART
@@ -98,6 +107,22 @@ def run_simulation(dir_name, N, tau, seed):
         ## Run FDRreg
         subprocess.call(["Rscript", "--vanilla", "R/FDRreg.R", dir_name])
 
+
+def job_complete(setting, setup):
+    if setting in ['additive', 'nonadditive']:
+        N, tau, seed = setup
+        dir_name = "results/{}/N_{}_tau{}_seed_{}".format(setting, N, tau, seed)
+    else:
+        seed = setup
+        dir_name = "results/nutlin/pca_seed_{}".format(seed)
+    
+    if not os.path.isdir(dir_name):
+        return False
+    
+    fnames = ["nonadditive_causal2groups_full.csv", "additive_causal2groups_full.csv", 
+              "frequentist_raw.csv", "bart.csv", "causal_forest.csv", "FDRreg.csv"]
+
+    return(all([os.path.isfile(os.path.join(dir_name, x)) for x in fnames]))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -119,10 +144,10 @@ if __name__ == '__main__':
     if setting in ['additive', 'nonadditive']:
         taus = [1, 3, 5]
         Ns = [1000, 10000]
-        seeds = np.arange(100, 130)
+        seeds = np.arange(100, 150)
         setups = list(product(Ns, taus, seeds))
     else:
-        seeds = np.arange(100, 130)
+        seeds = np.arange(100, 150)
         setups = seeds
         features_df = pd.read_csv("./data/all_features.csv", index_col=0)
         outcomes_df = pd.read_csv('./data/all_outcomes.csv')
@@ -130,7 +155,8 @@ if __name__ == '__main__':
 
 
     ## Assign each worker to its corresponding setting
-    setup_assignment = np.array_split(setups, n_workers)
+    remaining_setups = [setup for setup in setups if not job_complete(setting, setup)]
+    setup_assignment = np.array_split(remaining_setups, n_workers)
     curr_setups = setup_assignment[worker_id]
 
 

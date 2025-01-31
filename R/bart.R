@@ -24,17 +24,23 @@ summary(yt)
 
 # Counterfactual question, asking for outcomes without
 # treatment for treated individuals
-xp=xt[xt[,"T_"]==1,]
-xp[,ncol(xt)]=0
+xp <- xt
+xp[,ncol(xt)] <- 1-T_
 
 # Run BART on all the data
 bart.tot = bart(x.train=xt, y.train=yt, x.test=xp)
 
 # Get the treatment predictions
-mndiffs = bart.tot$yhat.train[,T_==1] - bart.tot$yhat.test
+#mndiffs = bart.tot$yhat.train[,T_==1] - bart.tot$yhat.test
+mndiffs = bart.tot$yhat.train - bart.tot$yhat.test
+ite <- apply(mndiffs, 2, mean)
+ite[T_==0] <- -ite[T_==0]
+ite.df = data.frame("ITE"=ite)
+write.csv(ite.df, paste(data_dir, "bart_ite.csv", sep="/"))
 
 # Perform a 1-sided Bayesian credible interval test (small = reject)
 fdr.local = apply(mndiffs < 0, 2, mean)
+fdr.local <- fdr.local[T_==1]
 
 # FDRs
 alphas = seq(0, 1, length.out = 1000)

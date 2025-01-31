@@ -2,11 +2,12 @@ import numpy as np
 from causal2groups.kernel_density import ConditionalKDE
 from scipy.stats import false_discovery_control
 from tqdm import trange
+from causal2groups.kernel_ridge import KernelRidgeRegression
 
 class KernelFrequentist:
     def __init__(self, 
                  kernel_n_neighbors:list, 
-                 kernel_bandwidth_neighbors:list,
+                 kernel_bandwidth_neighbor_fracs:list,
                  n_bootstraps:int=100,
                  bootstrap_quantile:float=0.2,
                  n_grid:int=75,
@@ -14,7 +15,7 @@ class KernelFrequentist:
 
         self.null_model = ConditionalKDE()
         self.kernel_n_neighbors = kernel_n_neighbors
-        self.kernel_bandwidth_neighbors = kernel_bandwidth_neighbors
+        self.kernel_bandwidth_neighbor_fracs = kernel_bandwidth_neighbor_fracs
         self.n_bootstraps = n_bootstraps
         self.bootstrap_quantile = bootstrap_quantile
         self.n_grid = n_grid
@@ -27,7 +28,9 @@ class KernelFrequentist:
         if self.verbose:
             print('Fitting null model.')
 
-        self.null_model.fit_via_loo_cv(X=X[T==0], y=Y[T==0], n_neighbors=self.kernel_n_neighbors, bandwidth_neighbors=self.kernel_bandwidth_neighbors)
+        self.null_model.fit_via_loo_cv(X=X[T==0], y=Y[T==0], 
+                                       n_neighbors=self.kernel_n_neighbors, 
+                                       bandwidth_neighbor_fracs=self.kernel_bandwidth_neighbor_fracs)
 
         if self.verbose:
             print('Drawing bootstrap samples from treatment model.')

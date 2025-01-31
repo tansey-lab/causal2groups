@@ -123,42 +123,6 @@ class KernelRidgeRegression:
         return(self.y-y_pred)
 
 
-    # def fit(self, X, y, bandwidth, lam):
-    #     self.X = X
-    #     self.y = y
-    #     self.sq_dists = squareform(pdist(X, metric="sqeuclidean"))
-    #     self.bandwidth = bandwidth
-    #     self.lam = lam 
-
-    #     K = np.exp(-0.5*self.sq_dists/self.bandwidth)
-    #     self.Lam, self.Q = np.linalg.eigh(K)
-    #     self.K_diag = np.diag(K)
-
-    # def update(self, X=None, y=None, bandwidth=None, lam=None):
-    #     update_K_inv = False
-
-    #     if X is not None:
-    #         self.X = X
-    #         self.sq_dists = squareform(pdist(X, metric="sqeuclidean"))
-    #         update_K_inv = True
-
-    #     if y is not None:
-    #         self.y = y
-
-    #     if lam is not None:
-    #         self.lam = lam
-    #         update_K_inv = True
-        
-    #     if bandwidth is not None:
-    #         self.bandwidth = bandwidth
-    #         update_K_inv = True
-        
-    #     if update_K_inv:
-    #         K = np.exp(-0.5*self.sq_dists/self.bandwidth)
-    #         self.Lam, self.Q = np.linalg.eigh(K)
-    #         self.K_diag = np.diag(K)
-
-
     def predict(self, X_pred):
         X_pred_transform = (X_pred- self.X_mean)/self.X_stdv
 
