@@ -205,6 +205,7 @@ def load_fdr(folder):
                 df = pd.read_csv(fname, index_col=0)
                 df.rename(columns={x:' '.join(x.split('.')) for x in df.columns}, inplace=True)
                 df.rename(columns={"False discovery rate":"Observed FDR"}, inplace=True)
+                df.rename(columns={"Fraction of discoveries made":"Observed power"}, inplace=True)
                 df['seed'] = int(seed)
                 df['N'] = int(N)
                 df['tau'] = float(tau)
