@@ -3,8 +3,6 @@ import numpy as np
 from lifelines import KaplanMeierFitter, CoxPHFitter
 from matplotlib import pyplot as plt
 from causal2groups.npc2g import KernelNonparametricCausal2G
-from scipy.special import logit, expit
-from sklearn.linear_model import lasso_path
 import distinctipy
 from scipy.stats import fisher_exact, false_discovery_control
 from tqdm import tqdm
