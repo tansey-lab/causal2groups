@@ -9,9 +9,9 @@ The causal two-groups model assumes that data is generated according to the foll
 
 $$
 \begin{aligned}
-y | x, h    &~&  (1-h) f_0(y | x) + h f_1(y | x) \\
+y | x, h    &\sim&  (1-h) f_0(y | x) + h f_1(y | x) \\
 h | x, t=0  &=&  0 \\
-h | x, t=1  &~&  \text{Bernoulli}( \pi(x) )
+h | x, t=1  &\sim&  \text{Bernoulli}( \pi(x) )
 \end{aligned}
 $$
 
