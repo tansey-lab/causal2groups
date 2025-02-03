@@ -50,6 +50,7 @@ methods=["Causal forest", "BART", "FDRreg", "Frequentist", 'Add-C2G', 'NP-C2G', 
 
 for setting in settings:
     for metric in ["fdr", "power", "roc"]:
+        os.makedirs(os.path.join("./plots",setting), exist_ok=True) ## Make the directory
         df = res.get_df(metric)
         xlabel = metric2xlabel[metric]
         ylabel = metric2ylabel[metric]
@@ -77,6 +78,7 @@ for setting in settings:
 
 ## Nutlin
 setting = 'nutlin'
+os.makedirs(os.path.join("./plots",setting), exist_ok=True) ## Make the directory
 plt.clf()
 fig, axs = plt.subplots(1, 2, figsize=(2*5, 3.5))
 for i, metric in enumerate(["fdr", "power"]):

@@ -6,6 +6,9 @@ from causal2groups.npc2g import KernelNonparametricCausal2G
 import distinctipy
 from scipy.stats import fisher_exact, false_discovery_control
 from tqdm import tqdm
+import os
+
+os.makedirs("./plots/survival", exist_ok=True)
 
 np.random.seed(200)
 
