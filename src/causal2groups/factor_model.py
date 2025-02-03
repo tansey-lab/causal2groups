@@ -1,13 +1,11 @@
 import numpy as np
-import pandas as pd
-from jax import vmap, jit, Array
-from jax.nn import softmax
+from jax import jit, Array
 import jax.numpy as jnp
 from jax.scipy.special import expit
 from jax.random import PRNGKey, split
 import numpyro
 import numpyro.distributions as dist
-from numpyro.infer import SVI, Trace_ELBO, autoguide
+from numpyro.infer import Trace_ELBO, autoguide
 import math
 from tqdm import tqdm
 

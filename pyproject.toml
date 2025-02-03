@@ -5,7 +5,7 @@ description = "Testing for individual causal effects in observational data with 
 readme = "README.md"
 requires-python = ">=3.11"
 license = {file = "LICENSE.txt"}
-keywords = ['causality', 'causal-inference', 'fdr', 'empirical-bayes']
+keywords = ['causal-inference', 'fdr', 'empirical-bayes']
 authors = [
     {name = "Christopher Tosh", email = "christopher.j.tosh@gmail.com" },
     {name = "Boyuan Zhang", email = "boyuan.zhang@nyu.edu"},
@@ -26,7 +26,14 @@ dependencies = [
         "seaborn",
         "scipy",
         "scikit-learn",
-        "pandas"
+        "pandas", 
+        "mygene", 
+        "distinctipy", 
+        "lifelines", 
+        "jax", 
+        "interpax", 
+        "numpyro", 
+        "autograd-minimize"
 ]
 
 [project.urls]

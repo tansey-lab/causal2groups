@@ -2,9 +2,9 @@ import os, sys
 import numpy as np
 import pandas as pd
 from causal2groups.simulated_data import AdditiveSimulatedData, NonadditiveSimulatedData, GDSCSemiSynthetic
-from causal2groups.kernel_nonadditive import KernelNonadditiveCausal2G
+from causal2groups.npc2g import KernelNonparametricCausal2G
 from causal2groups.frequentist import KernelFrequentist
-from causal2groups.additive import AdditiveCausal2G
+from causal2groups.addc2g import AdditiveCausal2G
 from itertools import product
 import subprocess
 import argparse
@@ -24,7 +24,7 @@ def run_simulation(dir_name, N, tau, seed):
     fdr_levels = np.linspace(0.0, 1.0, num=1000)
     if not os.path.isfile(os.path.join(dir_name, "nonadditive_causal2groups_full.csv")):
         ## Fit nonadditive causal2groups
-        kernel_causal2groups = KernelNonadditiveCausal2G(kernel_n_neighbors=[50, 100, 200], 
+        kernel_causal2groups = KernelNonparametricCausal2G(kernel_n_neighbors=[50, 100, 200], 
                                                         kernel_bandwidth_neighbor_fracs=np.logspace(-3,0, num=10), 
                                                         verbose=True)
         kernel_causal2groups.fit(X=X, Y=Y, T=T)
@@ -149,9 +149,9 @@ if __name__ == '__main__':
     else:
         seeds = np.arange(100, 150)
         setups = seeds
-        features_df = pd.read_csv("./data/all_features.csv", index_col=0)
-        outcomes_df = pd.read_csv('./data/all_outcomes.csv')
-        drug_df = pd.read_csv('./data/gdsc_drug_details.csv')
+        features_df = pd.read_csv("./data/nutlin/all_features.csv", index_col=0)
+        outcomes_df = pd.read_csv('./data/nutlin/all_outcomes.csv')
+        drug_df = pd.read_csv('./data/nutlin/gdsc_drug_details.csv')
 
 
     ## Assign each worker to its corresponding setting

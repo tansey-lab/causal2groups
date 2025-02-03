@@ -5,7 +5,7 @@ from causal2groups.kernel_ridge import KernelRidgeRegression
 from causal2groups.utils import posterior_selection_fdr, posterior_selection, posterior_selection_empirical_control
 
 
-class KernelNonadditiveCausal2G:
+class KernelNonparametricCausal2G:
     def __init__(self, 
                  kernel_n_neighbors:list, 
                  kernel_bandwidth_neighbor_fracs:list,
