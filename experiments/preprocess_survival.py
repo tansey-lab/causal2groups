@@ -3,7 +3,7 @@ import numpy as np
 import mygene
 
 ### Get all the genes in order
-clinical_df = pd.read_csv("./data/tmb_mskcc_2018_clinical_data.tsv", sep='\t')
+clinical_df = pd.read_csv("./data/tmb_mskcc_2018/tmb_mskcc_2018_clinical_data.tsv", sep='\t')
 x = clinical_df.nunique()
 keep_cols = x.index[x.values>1]
 clinical_df = clinical_df[keep_cols]
@@ -16,7 +16,7 @@ merge_df = clinical_df.merge(mut_df, left_on="Sample ID", right_on="Tumor_Sample
 panels = np.unique(clinical_df['Gene Panel'])
 impact2genes = {}
 for panel in panels:
-    pdf = pd.read_csv("./data/data_gene_panel_myb_{}.txt".format(panel.upper()), sep="\t", skiprows=2, skipfooter=1, engine='python')
+    pdf = pd.read_csv("./data/tmb_mskcc_2018/data_gene_panel_myb_{}.txt".format(panel.upper()), sep="\t", skiprows=2, skipfooter=1, engine='python')
     v = pdf.columns.values
     v[0] = 'ABL1'
     impact2genes[panel] = v
@@ -85,10 +85,9 @@ gene_df.to_csv("./data/tmb_mskcc_2018/genes.csv", index=0)
 
 #### Run Bernoulli matrix factorization
 from causal2groups.factor_model import BernoulliFactorModel
-from scipy.special import expit
 
 seed = 100
-rng = np.random.default_rng(seed)
+np.random.seed(seed)
 
 df = pd.read_csv("./data/tmb_mskcc_2018/mutations.csv")
 nunique = df.nunique()

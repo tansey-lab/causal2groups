@@ -37,7 +37,7 @@ def z_scores(batch, null_cols, target_cols):
 if __name__ == '__main__':
     # Load the dataset (should be the filtered dataset from step2)
     print('Loading data')
-    df = pd.read_csv('data/all_outcomes.csv', header=0, delimiter=',')
+    df = pd.read_csv('data/nutlin/all_outcomes.csv', header=0, delimiter=',')
 
     # Total number of each well type
     npos = 48
@@ -68,5 +68,5 @@ if __name__ == '__main__':
     df['control_std'] = pd.Series(ctrl_std)
 
     print('Saving')
-    df.to_csv('data/all_outcomes.csv', index=False)
+    df.to_csv('data/nutlin/all_outcomes.csv', index=False)
 

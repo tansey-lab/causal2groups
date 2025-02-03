@@ -16,7 +16,7 @@ patient_mut_embeds.reset_index(names="Patient ID", inplace=True)
 gene_df = pd.read_csv("./data/tmb_mskcc_2018/genes.csv")
 gene_id2gene_name = dict(zip(gene_df['gene_id'], gene_df['gene_name']))
 
-clinical_df = pd.read_csv("./data/tmb_mskcc_2018_clinical_data.tsv", sep="\t")
+clinical_df = pd.read_csv("./data/tmb_mskcc_2018/tmb_mskcc_2018_clinical_data.tsv", sep="\t")
 
 keeper_covariates = ['Age Group at Diagnosis in Years', 'Cancer Type', 'Sample Type', 'Sex']
 treatment_variable = 'Drug Type'

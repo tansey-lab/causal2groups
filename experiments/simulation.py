@@ -149,9 +149,9 @@ if __name__ == '__main__':
     else:
         seeds = np.arange(100, 150)
         setups = seeds
-        features_df = pd.read_csv("./data/all_features.csv", index_col=0)
-        outcomes_df = pd.read_csv('./data/all_outcomes.csv')
-        drug_df = pd.read_csv('./data/gdsc_drug_details.csv')
+        features_df = pd.read_csv("./data/nutlin/all_features.csv", index_col=0)
+        outcomes_df = pd.read_csv('./data/nutlin/all_outcomes.csv')
+        drug_df = pd.read_csv('./data/nutlin/gdsc_drug_details.csv')
 
 
     ## Assign each worker to its corresponding setting
