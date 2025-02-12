@@ -91,5 +91,6 @@ To run the survival analysis, we run the following from the base directory.
 python experiments/survival.py
 ```
 
+Data for the survival analysis can be found at https://www.cbioportal.org/study/summary?id=tmb_mskcc_2018.
 
 
