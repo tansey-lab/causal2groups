@@ -150,7 +150,7 @@ if __name__ == '__main__':
     datasets = ['creditcard', 'shuttle', 'musk', 'mammography']
     n_outs = [100]
     n_ins = [400]
-    n_nulls = [500, 4500]
+    n_nulls = [500, 1000]
 
     settings = product(seeds, datasets, n_outs, n_ins, n_nulls)
     curr_settings = [x for i,x in enumerate(settings) if (i%n_jobs)==index]
