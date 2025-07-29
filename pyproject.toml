@@ -3,7 +3,7 @@ name = "causal2groups"
 version = "1.0.0"
 description = "Testing for individual causal effects in observational data with FDR control."
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 license = {file = "LICENSE.txt"}
 keywords = ['causal-inference', 'fdr', 'empirical-bayes']
 authors = [

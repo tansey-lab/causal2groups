@@ -94,7 +94,7 @@ treat_z_scores = z_score(cph, X=treat_df, T=treat_df['Overall Survival (Months)'
 
 fig, axs = plt.subplots(1,2, figsize=(10,4))
 
-for drug_type, kmf in zip(["Null group", "Treatment group"], kms):
+for drug_type, kmf in zip(["Untreated", "Treated"], kms):
     axs[0].plot(kmf.survival_function_.index.values, kmf.survival_function_.KM_estimate.values, label=drug_type)
     axs[0].fill_between(x=kmf.confidence_interval_survival_function_.index.values, 
                      y1=kmf.confidence_interval_survival_function_['KM_estimate_lower_0.95'].values,
@@ -105,9 +105,9 @@ axs[0].set_ylabel('Kaplan–Meier estimate')
 
 
 
-_, bins, _ = axs[1].hist(treat_z_scores, bins=50, density=True, alpha=0.5, color="tab:orange", label='Treatment group')
-axs[1].hist(null_z_scores, bins=bins, density=True, alpha=0.5, color="tab:blue", label='Null group', zorder=0)
-axs[1].legend()
+_, bins, _ = axs[1].hist(treat_z_scores, bins=50, density=True, alpha=0.5, color="tab:orange", label='Treated')
+axs[1].hist(null_z_scores, bins=bins, density=True, alpha=0.5, color="tab:blue", label='Untreated', zorder=0)
+# axs[1].legend()
 axs[1].set_xlabel("Outcome")
 axs[1].set_ylabel("Density")
 plt.tight_layout()
