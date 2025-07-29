@@ -153,7 +153,7 @@ if __name__ == '__main__':
     n_nulls = [500, 4500]
 
     settings = product(seeds, datasets, n_outs, n_ins, n_nulls)
-    curr_settings = [x for i,x in enumerate(settings) if (i%n_jobs)==0]
+    curr_settings = [x for i,x in enumerate(settings) if (i%n_jobs)==index]
 
     alphas = [0.01, 0.05, 0.1, 0.2]
     nominal_levels = np.linspace(0.0, 1.0, num=1000)
