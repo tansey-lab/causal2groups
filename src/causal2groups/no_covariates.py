@@ -33,7 +33,8 @@ def cv_score(
         seed:int, 
         k:int=4, 
         n_estimators:int=200,
-        eps=1e-4):
+        eps=1e-4, 
+        max_depth:int=5):
     
     rng = np.random.default_rng(seed)
     n_x = x.shape[0]
@@ -54,7 +55,7 @@ def cv_score(
         x_train_idx = np.concatenate(x_inds[:i] + x_inds[(i+1):])
         xnull_train_idx = np.concatenate(xnull_inds[:i] + xnull_inds[(i+1):])
 
-        scoring_fn:RandomForestClassifier = fit_scoring_model(x[x_train_idx], xnull[xnull_train_idx], seed, n_estimators)
+        scoring_fn:RandomForestClassifier = fit_scoring_model(x[x_train_idx], xnull[xnull_train_idx], seed, n_estimators, max_depth)
 
         n_0 = xnull_train_idx.shape[0]
         n_1 = x_train_idx.shape[0]
