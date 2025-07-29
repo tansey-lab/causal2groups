@@ -111,7 +111,7 @@ def adadetect(
         fdr_observed.append(fdr)
         power_observed.append(power)
     
-    return(np.ndarray(fdr_observed), np.ndarray(power_observed))
+    return(np.array(fdr_observed), np.array(power_observed))
 
 def load_dataset(dataset_name:str):
     dataset = fetch_openml(name=dataset_name, version=1, as_frame=False)
