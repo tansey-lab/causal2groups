@@ -78,7 +78,7 @@ def np_c2g_eval(
         nominal_levels:np.ndarray,
         quantile:float):
     
-    pi = np.mean(np.quantile(x_scores, quantile, axis=0)>=1)
+    pi = np.min(np.quantile(x_scores, q, axis=0))
     null_posterior_treated = (1.0 - pi)/np.quantile(x_scores, quantile, axis=0)
     null_posterior_untreated = (1.0 - pi)/np.quantile(xnull_scores, quantile, axis=0)
     null_posterior_probs = np.concatenate([null_posterior_treated, null_posterior_untreated])
@@ -123,10 +123,6 @@ def load_dataset(dataset_name:str):
         X = dataset.data
         y = dataset.target.astype(np.float_)
         outlr, inlr = X[y>1], X[y==1]
-    elif dataset_name=='musk':
-        X = dataset.data[:,1:].astype(np.float_)
-        y = dataset.target.astype(np.float_)
-        outlr, inlr = X[y==1], X[y==0]
     elif dataset_name=='mammography':
         X = dataset.data
         y = dataset.target.astype(np.float_)
@@ -147,17 +143,17 @@ if __name__ == '__main__':
     n_seeds:int = args.n_seeds
 
     seeds = np.arange(start=100, stop=(100+n_seeds))
-    datasets = ['creditcard', 'shuttle', 'musk', 'mammography']
+    datasets = ['creditcard', 'shuttle', 'mammography']
     n_outs = [100]
     n_ins = [400]
-    n_nulls = [500, 1000]
+    n_nulls = [500]
 
     settings = product(seeds, datasets, n_outs, n_ins, n_nulls)
     curr_settings = [x for i,x in enumerate(settings) if (i%n_jobs)==index]
 
     alphas = [0.01, 0.05, 0.1, 0.2]
     nominal_levels = np.linspace(0.0, 1.0, num=1000)
-    quantiles = [0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75]
+    quantiles = [0.35]
     n_estimators = 200
     max_depth = 5
     rows = []
