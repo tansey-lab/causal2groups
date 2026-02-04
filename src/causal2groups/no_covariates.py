@@ -78,7 +78,7 @@ def np_c2g_eval(
         nominal_levels:np.ndarray,
         quantile:float):
     
-    pi = np.min(np.quantile(x_scores, q, axis=0))
+    pi = np.min(np.quantile(x_scores, quantile, axis=0))
     null_posterior_treated = (1.0 - pi)/np.quantile(x_scores, quantile, axis=0)
     null_posterior_untreated = (1.0 - pi)/np.quantile(xnull_scores, quantile, axis=0)
     null_posterior_probs = np.concatenate([null_posterior_treated, null_posterior_untreated])
